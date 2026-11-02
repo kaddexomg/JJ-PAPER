@@ -1,3 +1,179 @@
+
+function renderJjPaperEmailHtml({ subject = '', body = '', sellerName = '', sellerPhone = '' } = {}) {
+  const sName = sellerName || (typeof SELLER !== 'undefined' && SELLER?.name) || (typeof CURRENT_PROFILE !== 'undefined' && CURRENT_PROFILE?.name) || 'Keyder Salazar';
+  const sPhone = sellerPhone || (typeof SELLER !== 'undefined' && SELLER?.phone) || '0412-4676073 / 0212-7531777';
+  const sCode = (typeof SELLER !== 'undefined' && (SELLER?.mixnet_code || SELLER?.ref_code || SELLER?.code)) || '005';
+  const catalogUrl = 'https://jjpaper.pages.dev/catalogo.html?ref=' + encodeURIComponent(sCode);
+  
+  const lines = String(body || '').split(/\r?\n/);
+  const blocks = [];
+  let currentParagraph = [];
+
+  for (let line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      if (currentParagraph.length) {
+        blocks.push('<p style="margin:0 0 16px 0;line-height:1.75;font-size:15px;color:#1e293b;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;">' + currentParagraph.join('<br>') + '</p>');
+        currentParagraph = [];
+      }
+      continue;
+    }
+    if (trimmed.startsWith('•') || trimmed.startsWith('- ') || trimmed.startsWith('* ') || trimmed.startsWith('▪')) {
+      if (currentParagraph.length) {
+        blocks.push('<p style="margin:0 0 16px 0;line-height:1.75;font-size:15px;color:#1e293b;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;">' + currentParagraph.join('<br>') + '</p>');
+        currentParagraph = [];
+      }
+      let content = escapeHTML(trimmed.replace(/^[•\-*▪]\s*/, ''));
+      content = content.replace(/\*([^*]+)\*/g, '<strong style="color:#0f172a;">$1</strong>');
+      blocks.push(
+        '<div style="margin:8px 0 10px;padding:12px 16px;background-color:#f8fafc;border:1px solid #e2e8f0;border-left:3.5px solid #16604A;border-radius:8px;font-size:14.5px;color:#1e293b;line-height:1.65;">' +
+          '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"><tr>' +
+            '<td width="20" valign="top" style="color:#16604A;font-weight:bold;font-size:15px;padding-right:8px;line-height:1.4;">✔</td>' +
+            '<td valign="top" style="font-size:14px;color:#1e293b;line-height:1.65;">' + content + '</td>' +
+          '</tr></table>' +
+        '</div>'
+      );
+      continue;
+    }
+    let pContent = escapeHTML(trimmed);
+    pContent = pContent.replace(/\*([^*]+)\*/g, '<strong style="color:#0f172a;">$1</strong>');
+    currentParagraph.push(pContent);
+  }
+  if (currentParagraph.length) {
+    blocks.push('<p style="margin:0 0 16px 0;line-height:1.75;font-size:15px;color:#1e293b;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;">' + currentParagraph.join('<br>') + '</p>');
+  }
+
+  const bodyHtml = blocks.join('');
+  const cleanPhoneDigits = (sPhone.split('/')[0] || sPhone).replace(/\D/g, '');
+  const waNumber = cleanPhoneDigits.startsWith('0') ? '58' + cleanPhoneDigits.slice(1) : (cleanPhoneDigits.startsWith('58') ? cleanPhoneDigits : '58' + cleanPhoneDigits);
+
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${escapeHTML(subject || 'Comunicación Oficial JJ Paper')}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1e293b;line-height:1.75;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#f1f5f9;padding:32px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:680px;background-color:#ffffff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;box-shadow:0 10px 25px -5px rgba(0,0,0,0.05);text-align:left;">
+          <tr>
+            <td style="height:5px;background:linear-gradient(90deg, #16604A 0%, #208b6b 50%, #A7D7A0 100%);font-size:0;line-height:0;">&nbsp;</td>
+          </tr>
+          <tr>
+            <td style="background-color:#ffffff;padding:26px 32px 22px 32px;border-bottom:2px solid #16604A;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                <tr>
+                  <td width="60" valign="middle" style="padding-right:16px;">
+                    <a href="https://jjpaper.pages.dev" target="_blank" style="text-decoration:none;display:inline-block;">
+                      <img src="https://jjpaper.pages.dev/assets/img/logo.svg" alt="JJ Paper C.A." width="56" height="56" style="display:block;width:56px;height:56px;border:0;">
+                    </a>
+                  </td>
+                  <td valign="middle" align="left">
+                    <div style="font-size:21px;font-weight:800;color:#0f172a;letter-spacing:0.5px;line-height:1.2;">
+                      JJ PAPER <span style="font-size:14px;font-weight:700;color:#16604A;">C.A.</span>
+                    </div>
+                    <div style="font-size:12.5px;color:#64748b;margin-top:4px;font-weight:500;">
+                      RIF: <strong style="color:#0f172a;">J-29537545-0</strong> · Importador &amp; Distribuidor Mayorista Directo
+                    </div>
+                    <div style="margin-top:5px;">
+                      <span style="display:inline-block;padding:2px 8px;background-color:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;font-size:11px;color:#16604A;font-weight:600;">
+                        📍 Caracas, Venezuela · Despacho Corporativo en 24h
+                      </span>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          ${subject ? `<tr><td style="background-color:#f8fafc;padding:12px 32px;border-bottom:1px solid #e2e8f0;font-size:13px;font-weight:600;color:#334155;"><span style="color:#16604A;margin-right:6px;">📋</span> Ref: ${escapeHTML(subject)}</td></tr>` : ''}
+          <tr>
+            <td style="padding:28px 32px 20px 32px;font-size:15px;color:#1e293b;line-height:1.75;">
+              ${bodyHtml}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:0 32px 24px 32px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#f8fafc;border:1px solid #e2e8f0;border-left:4px solid #16604A;border-radius:8px;padding:16px 20px;">
+                <tr>
+                  <td>
+                    <div style="font-size:12px;font-weight:700;color:#16604A;text-transform:uppercase;margin-bottom:8px;">
+                      🛡️ Respaldo &amp; Garantía Operativa JJ Paper C.A.
+                    </div>
+                    <div style="font-size:13px;color:#334155;line-height:1.6;">
+                      ✔ <strong>Facturación SENIAT:</strong> Emitida a Tasa Oficial BCV del día.<br>
+                      ✔ <strong>Despacho en 24h:</strong> Entrega ágil en Caracas y La Guaira.<br>
+                      ✔ <strong>Procura Especial:</strong> Ubicamos cualquier insumo o equipo fuera de catálogo.
+                    </div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:0 32px 28px 32px;text-align:center;">
+              <a href="${catalogUrl}" target="_blank" style="display:inline-block;background:linear-gradient(135deg, #16604A 0%, #1e7a5e 100%);color:#ffffff;padding:14px 34px;font-size:15px;font-weight:700;text-decoration:none;border-radius:8px;">
+                🌐 Explorar Catálogo y Armar Cotización en Línea
+              </a>
+            </td>
+          </tr>
+          <tr>
+            <td style="background-color:#0f172a;padding:24px 32px;border-top:1px solid #1e293b;color:#94a3b8;font-size:12px;line-height:1.6;text-align:center;">
+              <strong style="color:#ffffff;">JJ PAPER C.A.</strong> · RIF J-29537545-0<br>
+              Asesor Comercial: <strong style="color:#ffffff;">${escapeHTML(sName)}</strong> · 📞 ${escapeHTML(sPhone)}<br>
+              <a href="https://wa.me/${waNumber}" target="_blank" style="color:#34d399;text-decoration:none;font-weight:600;">💬 Contactar por WhatsApp Directo</a>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
+function openMailPreviewModal() {
+  const subject = (document.getElementById('mailSubject')?.value || '').trim();
+  const body = (document.getElementById('mailBody')?.value || '').trim();
+  if (!body) {
+    showToast('Escribe o pega un mensaje primero para ver el diseño', 'warn');
+    return;
+  }
+  const html = renderJjPaperEmailHtml({ subject, body });
+  
+  let ovl = document.getElementById('mailPreviewModalOvl');
+  if (!ovl) {
+    ovl = document.createElement('div');
+    ovl.id = 'mailPreviewModalOvl';
+    ovl.className = 'modal-overlay op';
+    ovl.style.zIndex = '999999';
+    document.body.appendChild(ovl);
+  }
+  ovl.innerHTML = `
+    <div class="modal-box" style="max-width:760px;width:95%;max-height:90vh;display:flex;flex-direction:column;padding:0;overflow:hidden;border-radius:16px">
+      <div class="modal-hd" style="padding:14px 20px;border-bottom:1px solid #e2e8f0;background:#fff;display:flex;justify-content:space-between;align-items:center">
+        <h3 style="margin:0;font-size:16px;color:#16604A">🎨 Vista Previa del Correo con Diseño JJ Paper</h3>
+        <button class="modal-close" onclick="document.getElementById('mailPreviewModalOvl').remove()">✕</button>
+      </div>
+      <div style="flex:1;overflow-y:auto;background:#f1f5f9;padding:16px">
+        <iframe id="mailPreviewIframe" style="width:100%;height:560px;border:none;border-radius:10px;background:#fff;box-shadow:0 4px 12px rgba(0,0,0,0.08)"></iframe>
+      </div>
+      <div style="padding:12px 20px;background:#fff;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;color:#64748b">Así lo recibirá el cliente en Gmail, Outlook o teléfono.</span>
+        <button class="btn-p" onclick="document.getElementById('mailPreviewModalOvl').remove()" style="padding:6px 18px">Listo, continuar editando</button>
+      </div>
+    </div>
+  `;
+  const iframe = document.getElementById('mailPreviewIframe');
+  if (iframe) {
+    iframe.srcdoc = html;
+  }
+}
+window.openMailPreviewModal = openMailPreviewModal;
+window.renderJjPaperEmailHtml = renderJjPaperEmailHtml;
+
 /* ======================================================
    JJ Paper — Correo del CRM (envío por Gmail SMTP vía wa-server)
    Insert jjp_emails 'pending' → el server lo despacha → estado por Realtime.
@@ -680,7 +856,7 @@ async function mailSend() {
     return;
   }
 
-  const formattedHtml = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:#1e293b;padding:4px 0;">${body.split(/\r?\n\r?\n/).map(p => `<p style="margin:0 0 12px 0;">${p.replace(/\r?\n/g, '<br>')}</p>`).join('')}</div>`;
+  const formattedHtml = renderJjPaperEmailHtml({ subject, body });
 
   const { error } = await sb.from('jjp_emails').insert({
     owner_id: MAIL_ME.id, direction: 'out',
@@ -883,6 +1059,7 @@ function openMailAiComposer(prefillReply = null) {
             <option value="cobro">💳 Recordatorio Amistoso de Cobro / Pago</option>
             <option value="despacho">📦 Confirmación de Despacho / Pedido</option>
             <option value="respuesta">↩️ Respuesta Profesional a Consulta General</option>
+            <option value="formatear_texto" selected>🎨 Pegar mi texto y darle formato con diseño JJ Paper</option>
             <option value="libre">✍️ Redacción Libre</option>
           </select>
         </div>

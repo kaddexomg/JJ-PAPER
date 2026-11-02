@@ -433,31 +433,32 @@ window.CampaignEditor = (() => {
                 </div>
 
                 <!-- Acordeón / Desplegable: Modificar Redacción Manual & Variables -->
-                <details style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;padding:8px 10px;margin-top:6px;">
-                  <summary style="font-size:12px;font-weight:700;color:#334155;cursor:pointer;">
-                    ✏️ Ver / Editar Texto Base Manual &amp; Variables Dinámicas
-                  </summary>
-                  <div style="margin-top:8px;">
-                    <div id="ceEmailSubjectField" style="margin-bottom:6px;">
-                      <label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:2px">Asunto Base del Correo:</label>
-                      <input type="text" id="ceSubjectInput" class="ce-input" placeholder="Asunto del correo electrónico..." oninput="CampaignEditor.onSubjectInputChange()">
+                <div style="background:#f8fafc;border:1.5px solid #16604a;border-radius:10px;padding:12px 14px;margin-top:10px;">
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                    <div style="font-size:13px;font-weight:800;color:#16604A;display:flex;align-items:center;gap:6px">
+                      ✍️ Redacción Manual / Pegar mi Propio Texto
                     </div>
+                    <span style="font-size:11px;color:#059669;background:#ecfdf5;border:1px solid #a7f3d0;padding:2px 8px;border-radius:6px;font-weight:700">Se previsualiza al instante con diseño oficial 👉</span>
+                  </div>
+                  <div id="ceEmailSubjectField" style="margin-bottom:8px;">
+                    <label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:2px">Asunto del Correo:</label>
+                    <input type="text" id="ceSubjectInput" class="ce-input" placeholder="Asunto del correo electrónico..." oninput="CampaignEditor.onSubjectInputChange()">
+                  </div>
 
-                    <label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:2px">Cuerpo Base del Mensaje:</label>
-                    <textarea class="ce-textarea" id="ceMessageInput" placeholder="Escribe el mensaje de la campaña..." style="min-height:90px;" oninput="CampaignEditor.onMessageInputChange()"></textarea>
+                  <label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:2px">Cuerpo del Mensaje (Pega o escribe tu texto aquí):</label>
+                  <textarea class="ce-textarea" id="ceMessageInput" placeholder="Pega aquí el texto que desees enviar. La plantilla le aplicará automáticamente el membrete oficial, logo, botones de catálogo y pie de página institucional..." style="min-height:120px;font-size:12.5px" oninput="CampaignEditor.onMessageInputChange()"></textarea>
 
-                    <div style="margin-top:6px;">
-                      <label style="font-size:10.5px;color:#64748b;display:block;margin-bottom:3px">Variables dinámicas:</label>
-                      <div class="ce-variables-grid">
-                        <button type="button" class="ce-var-chip" onclick="CampaignEditor.insertVar('nombre')">👤 {{nombre}}</button>
-                        <button type="button" class="ce-var-chip" onclick="CampaignEditor.insertVar('empresa')">🏢 {{empresa}}</button>
-                        <button type="button" class="ce-var-chip" onclick="CampaignEditor.insertVar('vendedor')">💼 {{vendedor}}</button>
-                        <button type="button" class="ce-var-chip" onclick="CampaignEditor.insertVar('link')">🔗 {{link}}</button>
-                        <button type="button" class="ce-var-chip" onclick="CampaignEditor.insertSpintax()">🎲 Spintax</button>
-                      </div>
+                  <div style="margin-top:8px;display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+                    <button type="button" class="ce-var-btn" style="background:#8b5cf6;color:#fff;border-color:#7c3aed;font-weight:700" onclick="CampaignEditor.aiPolishPastedText()" title="Pulir y formatear con IA manteniendo mis productos y precios">✨ Pulir mi texto con IA</button>
+                    <div class="ce-variables-grid" style="margin-left:auto">
+                      <button type="button" class="ce-var-chip" onclick="CampaignEditor.insertVar('nombre')">👤 {{nombre}}</button>
+                      <button type="button" class="ce-var-chip" onclick="CampaignEditor.insertVar('empresa')">🏢 {{empresa}}</button>
+                      <button type="button" class="ce-var-chip" onclick="CampaignEditor.insertVar('vendedor')">💼 {{vendedor}}</button>
+                      <button type="button" class="ce-var-chip" onclick="CampaignEditor.insertVar('link')">🔗 {{link}}</button>
+                      <button type="button" class="ce-var-chip" onclick="CampaignEditor.insertSpintax()">🎲 Spintax</button>
                     </div>
                   </div>
-                </details>
+                </div>
 
                 <!-- Adjuntos & Seguridad -->
                 <div style="margin-top:10px;padding-top:10px;border-top:1px solid #e2e8f0;">
@@ -4477,6 +4478,7 @@ ${rawText}
     setCampaignMode,
     onToneOrNotesChange,
     onMessageInputChange,
+    aiPolishPastedText,
     onSubjectInputChange,
     openCatalogPickerForActiveMode,
     startAiDraftForCampaign,

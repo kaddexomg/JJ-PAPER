@@ -150,3 +150,28 @@ AGENTS.md                ← Contexto maestro y reglas inviolables para agentes 
   - `target = 'all'`: Ejecutado coordinadamente en ambos nodos.
 - **Regla de Respaldo Previo**: Cualquier agente que parchee o modifique código en vivo debe generar un archivo de respaldo con sufijo `.bak` antes de escribir y verificar sintaxis (`node -c` o `python -m py_compile`) antes de dar la tarea por completada.
 - **Regla de Nómina Estricta**: Cartera 020 es artificial; Cartera 010 es histórica. Keyder Salazar (`005`) solo comisiona o adjudica ventas si el documento en MixNet fue emitido expresamente con `CODVEN = '005'`. Prohibido asignar por código de zona.
+
+---
+
+## 9. Protocolo de la Consola Agéntica OpenCode y Manejo de Consultas IA (02-11-2026)
+
+- **Cerebro Cognitivo e Inferencia**:
+  - Modelos autorizados: `gemini-3.5-flash` y `gemini-3.5-flash-lite` con pool rotativo de 7 API Keys soberanas en `jjp_settings` (`ai_gemini_keys`).
+  - Timeout de inferencia mínimo: 18.000 ms (18s) en `gemini-client.js`.
+- **Espacio de Acciones y Tipificación Estricta**:
+  - `direct_answer`: Consultas conceptuales, explicaciones o saludos. Se imprime la respuesta directamente en pantalla sin enviar comandos al sistema operativo.
+  - `exec_python`: Consultas de datos de MixNet ERP en Supervisor-PC. Genera un script Python que lee de forma binaria (`struct.unpack`) los archivos `M:\comp01\MXENCPED.DBF`, `MXCTACLI.DBF`, `MXCTAINV.DBF` o `MXENCCOT.DBF` en sub-segundos sin bloquear el ERP.
+  - `exec_cmd`: Exclusivo para comandos válidos de shell (`git status`, `dir`, `pm2 list`).
+  - `exec_node`: Scripts Node.js para tareas de PostgreSQL o APIs.
+  - Acciones rápidas: `git_pull`, `reindex_all` (10 índices .NTX), `create_backup` (snapshot .BAK en comp01/backups/), `audit_health`.
+- **Prohibición Absoluta de Fallback Ciego**:
+  - Si una llamada de IA falla, aborta o no genera un JSON válido, está **TERMINANTEMENTE PROHIBIDO** inyectar el texto del usuario como comando crudo a PowerShell o Bash. Debe mostrarse una advertencia clara orientando al operador.
+- **Detección Real de Códigos de Salida**:
+  - Un proceso solo es exitoso si su código de retorno es `0`. Si `exitCode !== 0` o `ok === false`, la consola agéntica debe reportar en rojo como error (`term-err`), nunca anunciar un falso éxito.
+- **Telemetría de Nodos en Consola Agéntica**:
+  - La ventana de latido (`heartbeat_at`) se evalúa con una tolerancia de 5 minutos (300.000 ms), combinada con `vpsControl.modules.status === 'online'` y el endpoint nativo `/auth/v1/telemetry`, garantizando estados precisos `Online (VPS 24/7)` y `Conectado (Tienda)`.
+- **Motor Visual Liquid Aurora Flow**:
+  - Prohibido el uso de Canvas 2D de CPU para luces de fondo de navegación.
+  - Se utiliza aceleración por hardware GPU con capas CSS (`.jjp-aurora-flow`), curvas armónicas de Lissajous continuas a 60 FPS y transición por muelles (`cubic-bezier(0.16, 1, 0.3, 1)`) en interacción con categorías de `admin/sidenav.js`.
+- **Erradicación de Procesos Zombis**:
+  - Ningún script experimental o servidor secundario no funcional (ej. `tools/ai-catalog-studio/studio_server.py`) debe dejarse corriendo en background. Cualquier proceso en background debe tener supervisión y persistencia controlada vía PM2 o `start-hidden.vbs`.

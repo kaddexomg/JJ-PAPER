@@ -113,7 +113,7 @@ AGENTS.md                ← Contexto maestro y reglas inviolables para agentes 
 
 1. **Consultar Antes de Modificar**: Antes de escribir o modificar tablas DBF de MixNet, el agente DEBE consultar la documentación técnica de MixNet y contrastar contra la estructura Clipper original.
 2. **Reparación Previa Indispensable**: Antes de activar sincronizadores, MixNet debe estar saneado en `M:\comp01` (limpieza de comentarios `COMEN1`/`COMEN2` contaminados con `[MixNet]` o `COT-`, correlativos calibrados `MXNUMPED`/`MXNUMCOT` y reindexación nativa `.NTX` en el menú de mantenimiento de MixNet).
-3. **Escritura 100% Indetectable**: Cero huellas, cero firmas, cero notas técnicas. Si no hay comentarios de despacho del cliente, `COMEN1` y `COMEN2` se dejan en blanco (espacios `0x20`). Clientes no registrados en MixNet usan el código oficial `00` con nombre `CUENTA RECUPERADA`.
+3. **Escritura 100% Indetectable**: Cero huellas, cero firmas, cero notas técnicas. Si no hay comentarios de despacho del cliente, `COMEN1` y `COMEN2` se dejan en blanco (espacios `0x20`). Clientes no registrados en MixNet usan el código oficial `000-001` con nombre `CUENTA RECUPERADA` (o `CTA. RECUPERADA: 000-001`).
 4. **Índices Clipper .NTX**: Prohibido escribir registros en `.DBF` sin actualizar `.NTX`. Utilizar el micro-conector o herramientas nativas en Harbour (`DBFNTX`) que actualizan los árboles B-Tree en tiempo real para evitar pantallas trabadas y bucles en caja.
 5. **Snapshots Preventivos Obligatorios**: Toda operación por lotes sobre archivos DBF debe generar previamente un archivo de respaldo sellado en `M:\MIX11\comp01\backups\` con extensión `.BAK`.
 

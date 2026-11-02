@@ -160,9 +160,12 @@ function openMailPreviewModal() {
       <div style="flex:1;overflow-y:auto;background:#f1f5f9;padding:16px">
         <iframe id="mailPreviewIframe" style="width:100%;height:560px;border:none;border-radius:10px;background:#fff;box-shadow:0 4px 12px rgba(0,0,0,0.08)"></iframe>
       </div>
-      <div style="padding:12px 20px;background:#fff;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center">
-        <span style="font-size:12px;color:#64748b">Así lo recibirá el cliente en Gmail, Outlook o teléfono.</span>
-        <button class="btn-p" onclick="document.getElementById('mailPreviewModalOvl').remove()" style="padding:6px 18px">Listo, continuar editando</button>
+      <div style="padding:12px 20px;background:#fff;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+        <span style="font-size:12px;color:#64748b">✔ Así lo recibirá el destinatario en Gmail, Outlook o su teléfono.</span>
+        <div style="display:flex;gap:10px;align-items:center">
+          <button type="button" class="btn-o" onclick="document.getElementById('mailPreviewModalOvl').remove()" style="padding:6px 16px">Volver al editor</button>
+          <button type="button" class="btn-p" onclick="document.getElementById('mailPreviewModalOvl').remove();mailSend();" style="padding:6px 20px;background:#16604A;font-weight:700">🚀 Enviar con este diseño</button>
+        </div>
       </div>
     </div>
   `;

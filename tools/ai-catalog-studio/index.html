@@ -1135,7 +1135,7 @@ var CURRENT_VIEW_MODE = 'catalog'; // 'catalog' o 'detail'
 let CATALOG_CURRENT_LIMIT = 60;
 let URL_ASSIGN_PRODUCT_ID = null;
 
-const PYTHON_API = 'http://127.0.0.1:8795';
+let PYTHON_API = localStorage.getItem('jjp_studio_server_url') || 'http://127.0.0.1:8795';
 let USE_PYTHON_BACKEND = false;
 let ALL_PRODUCTS = [];
 let CATEGORIES = [];
@@ -1242,21 +1242,44 @@ function suggestCategoryHeuristic(name, curCat) {
   return { cat: curCat && curCat !== 'SIN CATEGORÍA' ? curCat : 'PAPEL', fam: '1. Oficina' };
 }
 
-async function reconnectPythonEngine() {
-  logMotor('🔌 Comprobando motor Python local en http://127.0.0.1:8795...', '#67e8f9');
+async function reconnectPythonEngine(targetUrl) {
+  if (targetUrl) {
+    PYTHON_API = targetUrl.startsWith('http') ? targetUrl : 'http://' + targetUrl + (targetUrl.includes(':') ? '' : ':8795');
+    localStorage.setItem('jjp_studio_server_url', PYTHON_API);
+  }
+  logMotor('🔌 Comprobando motor Python en ' + PYTHON_API + '...', '#67e8f9');
   await init();
 }
 
 async function init() {
   const offlineBanner = document.getElementById('engineOfflineBanner');
 
-  // 1. Intentar conectar con el motor Python local (localhost:8795)
-  try {
-    const r = await fetch(`${PYTHON_API}/api/status`, { signal: AbortSignal.timeout(3000) });
-    const j = await r.json();
-    if (j && j.ok) {
-      USE_PYTHON_BACKEND = true;
-      if (offlineBanner) offlineBanner.style.display = 'none';
+  // 1. Intentar conectar con el motor Python (configurado o LAN)
+  const candidates = [PYTHON_API];
+  if (!candidates.includes('http://192.168.1.13:8795')) candidates.push('http://192.168.1.13:8795');
+  if (!candidates.includes('http://127.0.0.1:8795')) candidates.push('http://127.0.0.1:8795');
+
+  let connectedUrl = null;
+  let statusJson = null;
+
+  for (const cand of candidates) {
+    try {
+      const r = await fetch(`${cand}/api/status`, { signal: AbortSignal.timeout(2000) });
+      const j = await r.json();
+      if (j && j.ok) {
+        connectedUrl = cand;
+        statusJson = j;
+        break;
+      }
+    } catch (_) {}
+  }
+
+  if (connectedUrl && statusJson) {
+    PYTHON_API = connectedUrl;
+    localStorage.setItem('jjp_studio_server_url', PYTHON_API);
+    const j = statusJson;
+    USE_PYTHON_BACKEND = true;
+    if (offlineBanner) offlineBanner.style.display = 'none';
 
       const se = j.search_engine || {};
       const seText = se.ready

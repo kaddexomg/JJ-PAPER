@@ -687,7 +687,7 @@ function posResetCustomer() {
 async function posOnCodeChange(val) {
   const code = (val || '').trim();
   if (!code) return;
-  if (code === '00' || code === '0') {
+  if (code === '000-001' || code === '00' || code === '0') {
     posSetCuentaRecuperada();
     return;
   }
@@ -719,15 +719,15 @@ function posSetCuentaRecuperada() {
   const c = {
     id: null,
     name: 'CUENTA RECUPERADA',
-    rif: '00',
+    rif: '000-001',
     phone: '00000000000',
     city: 'Caracas',
-    notes: 'Cliente no registrado en MixNet (Código 00)',
-    mixnet_code: '00',
+    notes: 'Cliente no registrado en MixNet (Código Oficial 000-001)',
+    mixnet_code: '000-001',
     is_recuperada: true
   };
   posPickCustomer(c);
-  showToast('⚡ Cliente Oficial MixNet [00] (Cuenta Recuperada) aplicado');
+  showToast('⚡ Cliente Oficial MixNet [000-001] (Cuenta Recuperada) aplicado');
 }
 
 function posSetConsumidorFinal() {
@@ -738,7 +738,7 @@ function posSetConsumidorFinal() {
     phone: '00000000000',
     city: 'Mostrador',
     notes: 'Venta rápida de mostrador',
-    mixnet_code: '00',
+    mixnet_code: '000-001',
     is_recuperada: false
   };
   posPickCustomer(c);

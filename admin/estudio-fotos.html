@@ -731,18 +731,22 @@
   </div>
 </header>
 
-<!-- BANNER DE ALERTA: MOTOR APAGADO -->
-<div class="engine-offline-banner" id="engineOfflineBanner" style="display:none">
-  <div class="alert-body">
-    <span style="font-size:22px">⚠️</span>
+<!-- BANNER DE CONEXIÓN CON MOTOR PLAYWRIGHT -->
+<div class="engine-offline-banner" id="engineOfflineBanner" style="display:none;background:#1e293b;border:1px solid #334155;color:#e2e8f0;padding:12px 18px;margin:12px 20px;border-radius:10px;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+  <div class="alert-body" style="display:flex;align-items:center;gap:12px;flex:1;min-width:280px">
+    <span style="font-size:22px">🌐</span>
     <div>
-      <strong style="color:#fca5a5">Motor de búsqueda local apagado en http://127.0.0.1:8795</strong>
-      <p style="color:#cbd5e1;font-size:11.5px;margin-top:2px">
-        Para buscar packshots exactos en la web (Google, DDG, Bing con Playwright Edge) y procesar en lote, ejecuta <code>iniciar-estudio-ia.bat</code> en el PC de la oficina. En este modo solo puedes ver el catálogo, reordenar categorías y subir fotos manualmente desde tu PC.
+      <strong style="color:#38bdf8">Modo Catálogo Soberano Activo (VPS PostgreSQL 16)</strong>
+      <p style="color:#94a3b8;font-size:11.5px;margin-top:2px">
+        Catálogo, fotos y edición activos en el VPS. Si deseas activar la búsqueda web automatizada con Playwright, conecta con la PC Principal:
       </p>
     </div>
   </div>
-  <button class="btn btn-amber" style="padding:6px 12px;font-size:11.5px" onclick="reconnectPythonEngine()">🔄 Reintentar Conexión</button>
+  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+    <input type="text" id="engineIpInput" placeholder="192.168.1.13:8795" style="background:#0f172a;border:1px solid #475569;color:#fff;padding:5px 10px;border-radius:6px;font-size:11.5px;width:150px">
+    <button class="btn btn-cyan" style="padding:5px 10px;font-size:11.5px" onclick="reconnectPythonEngine(document.getElementById('engineIpInput').value.trim())">🔌 Conectar</button>
+    <button class="btn btn-sec" style="padding:5px 10px;font-size:11.5px" onclick="document.getElementById('engineOfflineBanner').style.display='none'">✕</button>
+  </div>
 </div>
 
 <nav class="nav-tabs" role="tablist">
@@ -1135,7 +1139,7 @@ var CURRENT_VIEW_MODE = 'catalog'; // 'catalog' o 'detail'
 let CATALOG_CURRENT_LIMIT = 60;
 let URL_ASSIGN_PRODUCT_ID = null;
 
-const PYTHON_API = 'http://127.0.0.1:8795';
+let PYTHON_API = localStorage.getItem('jjp_studio_server_url') || 'http://127.0.0.1:8795';
 let USE_PYTHON_BACKEND = false;
 let ALL_PRODUCTS = [];
 let CATEGORIES = [];
@@ -1242,21 +1246,44 @@ function suggestCategoryHeuristic(name, curCat) {
   return { cat: curCat && curCat !== 'SIN CATEGORÍA' ? curCat : 'PAPEL', fam: '1. Oficina' };
 }
 
-async function reconnectPythonEngine() {
-  logMotor('🔌 Comprobando motor Python local en http://127.0.0.1:8795...', '#67e8f9');
+async function reconnectPythonEngine(targetUrl) {
+  if (targetUrl) {
+    PYTHON_API = targetUrl.startsWith('http') ? targetUrl : 'http://' + targetUrl + (targetUrl.includes(':') ? '' : ':8795');
+    localStorage.setItem('jjp_studio_server_url', PYTHON_API);
+  }
+  logMotor('🔌 Comprobando motor Python en ' + PYTHON_API + '...', '#67e8f9');
   await init();
 }
 
 async function init() {
   const offlineBanner = document.getElementById('engineOfflineBanner');
 
-  // 1. Intentar conectar con el motor Python local (localhost:8795)
-  try {
-    const r = await fetch(`${PYTHON_API}/api/status`, { signal: AbortSignal.timeout(3000) });
-    const j = await r.json();
-    if (j && j.ok) {
-      USE_PYTHON_BACKEND = true;
-      if (offlineBanner) offlineBanner.style.display = 'none';
+  // 1. Intentar conectar con el motor Python (configurado o LAN)
+  const candidates = [PYTHON_API];
+  if (!candidates.includes('http://192.168.1.13:8795')) candidates.push('http://192.168.1.13:8795');
+  if (!candidates.includes('http://127.0.0.1:8795')) candidates.push('http://127.0.0.1:8795');
+
+  let connectedUrl = null;
+  let statusJson = null;
+
+  for (const cand of candidates) {
+    try {
+      const r = await fetch(`${cand}/api/status`, { signal: AbortSignal.timeout(2000) });
+      const j = await r.json();
+      if (j && j.ok) {
+        connectedUrl = cand;
+        statusJson = j;
+        break;
+      }
+    } catch (_) {}
+  }
+
+  if (connectedUrl && statusJson) {
+    PYTHON_API = connectedUrl;
+    localStorage.setItem('jjp_studio_server_url', PYTHON_API);
+    const j = statusJson;
+    USE_PYTHON_BACKEND = true;
+    if (offlineBanner) offlineBanner.style.display = 'none';
 
       const se = j.search_engine || {};
       const seText = se.ready

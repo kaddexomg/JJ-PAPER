@@ -1314,7 +1314,7 @@ def main():
     print(f"  * Interfaz Web:     http://localhost:{PORT}")
     print("=" * 68)
     threading.Thread(target=lambda: fetch_catalog_state(force=True), daemon=True).start()
-    server = ThreadingHTTPServer(("127.0.0.1", PORT), StudioHandler)
+    server = ThreadingHTTPServer(("0.0.0.0", PORT), StudioHandler)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

@@ -9,7 +9,7 @@ let custAc = { timer: null, results: {}, sel: -1 };
 function isValidMixCode(code) {
   if (!code) return false;
   const s = String(code).trim();
-  if (s === '00' || s === '0') return true;
+  if (s === '000-001' || s === '00' || s === '0') return true;
   // Descartar si es palabra "zona" o si es solamente un número de 1 a 3 dígitos (ej: "004", "008", "014", "020")
   if (/^zona\b/i.test(s)) return false;
   if (/^[0-9]{1,3}$/.test(s)) return false;
@@ -41,7 +41,7 @@ function isValidMixCode(code) {
 function custAcExtractMixCode(c) {
   if (!c) return '';
   if (c.mixnet_code && isValidMixCode(c.mixnet_code)) return String(c.mixnet_code).trim();
-  if (c.rif === '00' || c.is_recuperada || /recuperad/i.test(c.name || '')) return '00';
+  if (c.rif === '000-001' || c.rif === '00' || c.is_recuperada || /recuperad/i.test(c.name || '')) return '000-001';
   if (c.notes) {
     const str = String(c.notes);
     // 1. Etiqueta explícita: "Codigo MixNet: 003-251", "MixNet: 003-251", etc.
@@ -117,8 +117,8 @@ async function custAcSearch(nameId, boxId, opts) {
     const cleanQ = q.replace(/[%_,[\]()"'\\;]/g, ' ').replace(/\s+/g, ' ').trim();
     if (!cleanQ) { custAcHide(boxId); return; }
 
-    const isRecuperadaQuery = q === '00' || q === '0' || /recuperad/i.test(q);
-    const isMixCode = (searchCode && (searchCode.includes('-') || searchCode === '00')) || /^[0-9]{2,4}-[0-9A-Za-z]+$/.test(cleanQ);
+    const isRecuperadaQuery = q === '000-001' || q === '00' || q === '0' || /recuperad/i.test(q);
+    const isMixCode = (searchCode && (searchCode.includes('-') || searchCode === '000-001' || searchCode === '00')) || /^[0-9]{2,4}-[0-9A-Za-z]+$/.test(cleanQ);
 
     const orParts = [];
     orParts.push(`name.ilike.%${cleanQ}%`);
@@ -199,20 +199,20 @@ async function custAcSearch(nameId, boxId, opts) {
       return 0;
     });
 
-    // Opción oficial MixNet de Cuenta Recuperada (Código 00)
+    // Opción oficial MixNet de Cuenta Recuperada (Código Oficial 000-001)
     const cuentaRecuperadaOption = {
       id: null,
       name: 'CUENTA RECUPERADA',
-      rif: '00',
+      rif: '000-001',
       phone: '00000000000',
       city: 'Caracas',
       address: '',
-      notes: 'Cliente no registrado en MixNet (Código 00)',
-      mixnet_code: '00',
+      notes: 'Cliente no registrado en MixNet (Código Oficial 000-001)',
+      mixnet_code: '000-001',
       is_recuperada: true
     };
 
-    if (isRecuperadaQuery && !results.some(r => r.mixnet_code === '00' || /recuperad/i.test(r.name))) {
+    if (isRecuperadaQuery && !results.some(r => r.mixnet_code === '000-001' || r.mixnet_code === '00' || /recuperad/i.test(r.name))) {
       results.unshift(cuentaRecuperadaOption);
     }
 
@@ -225,7 +225,7 @@ async function custAcSearch(nameId, boxId, opts) {
           <div>No se encontró ningún cliente registrado con ese código, RIF o nombre.</div>
           <button type="button" class="btn sm" style="margin-top:10px;width:100%;background:var(--p, #16604a);color:#fff;font-weight:700"
                   onmousedown="custAcPickRecuperada('${boxId}')">
-            ⚡ Usar Cuenta Recuperada (Código Oficial MixNet: [00])
+            ⚡ Usar Cuenta Recuperada (Código Oficial MixNet: [000-001])
           </button>
         </div>`;
       box.style.display = 'block';
@@ -233,8 +233,8 @@ async function custAcSearch(nameId, boxId, opts) {
     }
 
     box.innerHTML = results.map((c, i) => {
-      const code = c.mixnet_code || (c.rif === '00' ? '00' : '');
-      const isRec = c.is_recuperada || code === '00' || c.rif === '00';
+      const code = c.mixnet_code || ((c.rif === '000-001' || c.rif === '00') ? '000-001' : '');
+      const isRec = c.is_recuperada || code === '000-001' || code === '00' || c.rif === '000-001' || c.rif === '00';
       const badgeStyle = isRec
         ? 'background:#fef3c7;color:#b45309;border:1px solid #fde68a'
         : (code ? 'background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd' : 'background:#f1f5f9;color:#475569;border:1px solid #cbd5e1');
@@ -258,7 +258,7 @@ async function custAcSearch(nameId, boxId, opts) {
             ${c.city ? `<span>📍 ${escapeHTML(c.city)}</span>` : ''}
           </div>
         </div>
-        <button type="button" class="btn-o sm" style="flex:none;font-weight:700;border-radius:6px;padding:3px 10px">${isRec ? 'Usar [00]' : 'Seleccionar'}</button>
+        <button type="button" class="btn-o sm" style="flex:none;font-weight:700;border-radius:6px;padding:3px 10px">${isRec ? 'Usar [000-001]' : 'Seleccionar'}</button>
       </div>`;
     }).join('');
 
@@ -270,12 +270,12 @@ function custAcPickRecuperada(boxId) {
   const rec = {
     id: null,
     name: 'CUENTA RECUPERADA',
-    rif: '00',
+    rif: '000-001',
     phone: '00000000000',
     city: 'Caracas',
     address: '',
-    notes: 'Cliente no registrado en MixNet (Código 00)',
-    mixnet_code: '00',
+    notes: 'Cliente no registrado en MixNet (Código Oficial 000-001)',
+    mixnet_code: '000-001',
     is_recuperada: true
   };
   custAcHide(boxId);

@@ -72,17 +72,17 @@
    Tokens de Tema: Titanium Obsidian Liquid Glass (Apple Dark)
    ==================================================== */
 [data-theme="dark"] {
-  --theme-bg-app:           #040711;
-  --theme-bg-surface:       rgba(12, 18, 30, 0.48);
-  --theme-bg-surface-solid: #0d1322;
-  --theme-bg-elevated:      rgba(18, 28, 46, 0.62);
+  --theme-bg-app:           #060a14;
+  --theme-bg-surface:       rgba(11, 17, 30, 0.80);
+  --theme-bg-surface-solid: #0c1322;
+  --theme-bg-elevated:      rgba(16, 24, 42, 0.88);
   --theme-item-bg:          rgba(255, 255, 255, 0.05);
-  --theme-text-main:        #ffffff;
+  --theme-text-main:        #f8fafc;
   --theme-text-muted:       #94a3b8;
   --theme-text-subtle:      #64748b;
-  --theme-border-glass:     rgba(255, 255, 255, 0.18);
-  --theme-border-subtle:    rgba(255, 255, 255, 0.10);
-  --theme-glass-shadow:     0 20px 50px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  --theme-border-glass:     rgba(255, 255, 255, 0.16);
+  --theme-border-subtle:    rgba(255, 255, 255, 0.08);
+  --theme-glass-shadow:     0 20px 50px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.22);
   --theme-input-bg:         rgba(10, 16, 28, 0.72);
   --theme-input-border:     rgba(255, 255, 255, 0.20);
   --theme-accent:           #34d399;

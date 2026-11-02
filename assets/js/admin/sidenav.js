@@ -369,7 +369,6 @@
 
     const tBtn = document.getElementById('jjpAsideToggleBtn');
     if (tBtn) {
-      tBtn.innerHTML = shouldCollapse ? '▶' : '◀';
       tBtn.title = shouldCollapse ? 'Expandir barra lateral' : 'Colapsar barra lateral';
     }
   }
@@ -404,7 +403,7 @@
       tBtn.className = 'jjp-aside-toggle';
       tBtn.setAttribute('aria-label', 'Colapsar menú');
       tBtn.title = 'Colapsar / Expandir barra';
-      tBtn.innerHTML = '◀';
+      tBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="jjp-toggle-svg"><polyline points="15 18 9 12 15 6"></polyline></svg>';
       tBtn.addEventListener('click', () => toggleCollapse());
       asideBrand.appendChild(tBtn);
     }
@@ -437,20 +436,197 @@
   }
 
   function injectBackgroundAurora() {
-    if (document.getElementById('jjpGlassAurora')) return;
-    const aurora = document.createElement('div');
-    aurora.id = 'jjpGlassAurora';
-    aurora.className = 'jjp-glass-aurora';
-    aurora.setAttribute('aria-hidden', 'true');
-    aurora.innerHTML = `
-      <div class="jjp-aurora-orb jjp-orb-cyan"></div>
-      <div class="jjp-aurora-orb jjp-orb-emerald"></div>
-      <div class="jjp-aurora-orb jjp-orb-violet"></div>
-      <div class="jjp-aurora-orb jjp-orb-pink"></div>
-      <div class="jjp-aurora-orb jjp-orb-amber"></div>
-      <div class="jjp-aurora-orb jjp-orb-blue"></div>
-    `;
-    document.body.prepend(aurora);
+    if (document.getElementById('jjpAuroraCanvas')) return;
+    const canvas = document.createElement('canvas');
+    canvas.id = 'jjpAuroraCanvas';
+    canvas.className = 'jjp-aurora-canvas';
+    canvas.setAttribute('aria-hidden', 'true');
+    document.body.prepend(canvas);
+
+    initLivingLightsEngine(canvas);
+  }
+
+  /* ---- MOTOR DE LUCES VIVAS (FÍSICA DE COLISIÓN, REBOTE Y VIDA PROPIA) ---- */
+  function initLivingLightsEngine(canvas) {
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let width = 0;
+    let height = 0;
+    function resize() {
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    // Detección sutil del cursor para interacción orgánica
+    const mouse = { x: -1000, y: -1000 };
+    window.addEventListener('mousemove', (e) => {
+      mouse.x = e.clientX;
+      mouse.y = e.clientY;
+    });
+
+    // 6 Seres de Luz Líquida con Identidad Propia
+    const SPECTRUM = [
+      { r: 0,   g: 245, b: 255 }, // Cyan Glacial
+      { r: 0,   g: 255, b: 136 }, // Esmeralda Neón
+      { r: 168, g: 85,  b: 247 }, // Violeta Cósmico
+      { r: 255, g: 0,   b: 128 }, // Fucsia Neón
+      { r: 255, g: 183, b: 3   }, // Ámbar Solar
+      { r: 56,  g: 189, b: 248 }  // Azul Eléctrico
+    ];
+
+    const lights = SPECTRUM.map((col, idx) => {
+      const angle = (idx / SPECTRUM.length) * Math.PI * 2;
+      const speed = 0.55 + Math.random() * 0.45;
+      return {
+        x: (width * 0.25) + Math.cos(angle) * (width * 0.35) + (Math.random() - 0.5) * 80,
+        y: (height * 0.35) + Math.sin(angle) * (height * 0.25) + (Math.random() - 0.5) * 80,
+        vx: Math.cos(angle + 0.8) * speed,
+        vy: Math.sin(angle + 0.8) * speed,
+        baseRadius: Math.min(width, height) * 0.26 + Math.random() * 50,
+        radius: 260,
+        phase: Math.random() * Math.PI * 2,
+        pulseSpeed: 0.014 + Math.random() * 0.01,
+        color: col,
+        collisionFlash: 0,
+        wanderTimer: Math.floor(Math.random() * 80)
+      };
+    });
+
+    let animId = null;
+    let lastTime = performance.now();
+
+    function render(now) {
+      if (document.hidden) {
+        animId = requestAnimationFrame(render);
+        return;
+      }
+
+      const dt = Math.min(2.0, (now - lastTime) / 16.66) || 1.0;
+      lastTime = now;
+
+      ctx.clearRect(0, 0, width, height);
+      ctx.globalCompositeOperation = 'screen';
+
+      // 1. Actualizar física, trayectorias y colisiones
+      for (let i = 0; i < lights.length; i++) {
+        const l = lights[i];
+        l.phase += l.pulseSpeed * dt;
+        l.radius = l.baseRadius * (0.86 + Math.sin(l.phase) * 0.18 + l.collisionFlash * 0.32);
+
+        if (l.collisionFlash > 0) {
+          l.collisionFlash = Math.max(0, l.collisionFlash - 0.03 * dt);
+        }
+
+        // Variación continua de rumbo (vida propia orgánica)
+        l.wanderTimer -= dt;
+        if (l.wanderTimer <= 0) {
+          l.wanderTimer = 90 + Math.random() * 140;
+          const steer = (Math.random() - 0.5) * 0.35;
+          const curSpeed = Math.hypot(l.vx, l.vy) || 0.6;
+          const curAngle = Math.atan2(l.vy, l.vx) + steer;
+          l.vx = Math.cos(curAngle) * curSpeed;
+          l.vy = Math.sin(curAngle) * curSpeed;
+        }
+
+        // Interacción sutil con el ratón (se alejan suavemente)
+        const dmx = l.x - mouse.x;
+        const dmy = l.y - mouse.y;
+        const distMouse = Math.hypot(dmx, dmy);
+        if (distMouse < 240 && distMouse > 10) {
+          const mForce = (240 - distMouse) * 0.0006 * dt;
+          l.vx += (dmx / distMouse) * mForce;
+          l.vy += (dmy / distMouse) * mForce;
+        }
+
+        // Límites de velocidad controlados
+        const curSpd = Math.hypot(l.vx, l.vy);
+        if (curSpd > 1.6) {
+          l.vx = (l.vx / curSpd) * 1.6;
+          l.vy = (l.vy / curSpd) * 1.6;
+        } else if (curSpd < 0.35) {
+          l.vx = (l.vx / (curSpd || 1)) * 0.45;
+          l.vy = (l.vy / (curSpd || 1)) * 0.45;
+        }
+
+        l.x += l.vx * dt;
+        l.y += l.vy * dt;
+
+        // Rebote elástico en los 4 bordes de la pantalla
+        const boundPadding = l.radius * 0.22;
+        if (l.x < boundPadding) {
+          l.x = boundPadding;
+          l.vx = Math.abs(l.vx) * 0.95 + (Math.random() - 0.5) * 0.15;
+          l.collisionFlash = Math.min(1.0, l.collisionFlash + 0.45);
+        } else if (l.x > width - boundPadding) {
+          l.x = width - boundPadding;
+          l.vx = -Math.abs(l.vx) * 0.95 + (Math.random() - 0.5) * 0.15;
+          l.collisionFlash = Math.min(1.0, l.collisionFlash + 0.45);
+        }
+        if (l.y < boundPadding) {
+          l.y = boundPadding;
+          l.vy = Math.abs(l.vy) * 0.95 + (Math.random() - 0.5) * 0.15;
+          l.collisionFlash = Math.min(1.0, l.collisionFlash + 0.45);
+        } else if (l.y > height - boundPadding) {
+          l.y = height - boundPadding;
+          l.vy = -Math.abs(l.vy) * 0.95 + (Math.random() - 0.5) * 0.15;
+          l.collisionFlash = Math.min(1.0, l.collisionFlash + 0.45);
+        }
+
+        // 2. Colisión física entre orbes (choque, repulsión elástica y destello)
+        for (let j = i + 1; j < lights.length; j++) {
+          const l2 = lights[j];
+          const dx = l2.x - l.x;
+          const dy = l2.y - l.y;
+          const dist = Math.hypot(dx, dy);
+          const minDist = (l.radius + l2.radius) * 0.44;
+
+          if (dist < minDist && dist > 1) {
+            const angle = Math.atan2(dy, dx);
+            const overlap = minDist - dist;
+            const force = overlap * 0.0035 * dt;
+
+            // Repulsión elástica
+            l.vx -= Math.cos(angle) * force;
+            l.vy -= Math.sin(angle) * force;
+            l2.vx += Math.cos(angle) * force;
+            l2.vy += Math.sin(angle) * force;
+
+            // Destello luminoso orgánico en el momento del impacto
+            l.collisionFlash = Math.min(1.0, l.collisionFlash + 0.55);
+            l2.collisionFlash = Math.min(1.0, l2.collisionFlash + 0.55);
+          }
+        }
+      }
+
+      // 3. Renderizar gradientes radiales luminosos multicapa
+      for (let i = 0; i < lights.length; i++) {
+        const l = lights[i];
+        const rad = Math.max(20, l.radius);
+        const grad = ctx.createRadialGradient(l.x, l.y, 0, l.x, l.y, rad);
+
+        const col = l.color;
+        const alphaCore = Math.min(1.0, 0.75 + l.collisionFlash * 0.25);
+        const alphaMid = 0.32 + l.collisionFlash * 0.20;
+        const alphaOuter = 0.07;
+
+        grad.addColorStop(0, `rgba(${col.r}, ${col.g}, ${col.b}, ${alphaCore})`);
+        grad.addColorStop(0.35, `rgba(${col.r}, ${col.g}, ${col.b}, ${alphaMid})`);
+        grad.addColorStop(0.70, `rgba(${col.r}, ${col.g}, ${col.b}, ${alphaOuter})`);
+        grad.addColorStop(1, `rgba(${col.r}, ${col.g}, ${col.b}, 0)`);
+
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(l.x, l.y, rad, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      animId = requestAnimationFrame(render);
+    }
+
+    animId = requestAnimationFrame(render);
   }
 
   /* ---- CSS AUTO-INYECTADO: AUTÉNTICO LIQUID GLASS (iOS 26 SPEC) ---- */
@@ -458,111 +634,29 @@
     if (document.getElementById('jjp-sidenav-css')) return;
     const css = `
     /* ==============================================================
-       MOTOR DE LUCES NEÓN VIVAS Y ORBES AURORA (ALTA PRESENCIA)
+       CANVAS DE LUCES VIVAS (FONDO ORGÁNICO EN MOVIMIENTO PERMANENTE)
        ============================================================== */
-    .jjp-glass-aurora {
-      position: fixed; inset: 0; pointer-events: none; z-index: 1;
-      overflow: hidden; opacity: 1;
-    }
-    .jjp-aurora-orb {
-      position: absolute; border-radius: 50%;
-      filter: blur(52px); mix-blend-mode: screen;
-      will-change: transform, opacity;
-    }
-    /* 1. Cyan Neón Ultrabrillante (Alrededor de logo y barra superior) */
-    .jjp-orb-cyan {
-      width: 480px; height: 480px;
-      background: radial-gradient(circle, rgba(0, 240, 255, 0.90) 0%, rgba(6, 182, 212, 0.50) 35%, rgba(6, 182, 212, 0.15) 60%, transparent 80%);
-      top: -40px; left: 10px;
-      animation: jjpNeonGlide1 7.2s ease-in-out infinite alternate;
-    }
-    /* 2. Esmeralda Láser (Cuerpo de la barra y panel central) */
-    .jjp-orb-emerald {
-      width: 500px; height: 500px;
-      background: radial-gradient(circle, rgba(0, 255, 136, 0.90) 0%, rgba(16, 185, 129, 0.50) 35%, rgba(16, 185, 129, 0.15) 60%, transparent 80%);
-      top: 32vh; left: -80px;
-      animation: jjpNeonGlide2 8.5s ease-in-out infinite alternate;
-    }
-    /* 3. Violeta Eléctrico (Pie de barra y navegación inferior) */
-    .jjp-orb-violet {
-      width: 520px; height: 520px;
-      background: radial-gradient(circle, rgba(168, 85, 247, 0.90) 0%, rgba(139, 92, 246, 0.50) 35%, rgba(139, 92, 246, 0.15) 60%, transparent 80%);
-      bottom: -60px; left: 30px;
-      animation: jjpNeonGlide3 7.8s ease-in-out infinite alternate;
-    }
-    /* 4. Fucsia / Rosa Neón (Flotando por el centro de la pantalla) */
-    .jjp-orb-pink {
-      width: 460px; height: 460px;
-      background: radial-gradient(circle, rgba(255, 0, 128, 0.85) 0%, rgba(236, 72, 153, 0.48) 35%, rgba(236, 72, 153, 0.14) 60%, transparent 80%);
-      top: 18vh; left: 32vw;
-      animation: jjpNeonGlide4 9.0s ease-in-out infinite alternate;
-    }
-    /* 5. Ámbar Dorado / Fuego Solar (Iluminando el sector derecho) */
-    .jjp-orb-amber {
-      width: 440px; height: 440px;
-      background: radial-gradient(circle, rgba(255, 183, 3, 0.85) 0%, rgba(245, 158, 11, 0.48) 35%, rgba(245, 158, 11, 0.14) 60%, transparent 80%);
-      bottom: 12vh; right: 10vw;
-      animation: jjpNeonGlide5 8.2s ease-in-out infinite alternate;
-    }
-    /* 6. Zafiro Real / Azul Neón (Orbitando tarjetas principales) */
-    .jjp-orb-blue {
-      width: 480px; height: 480px;
-      background: radial-gradient(circle, rgba(59, 130, 246, 0.85) 0%, rgba(37, 99, 235, 0.45) 35%, rgba(37, 99, 235, 0.12) 60%, transparent 80%);
-      top: 48vh; right: 24vw;
-      animation: jjpNeonGlide6 9.8s ease-in-out infinite alternate;
+    .jjp-aurora-canvas {
+      position: fixed; inset: 0; width: 100vw; height: 100vh;
+      pointer-events: none; z-index: 1;
+      opacity: 0.95;
     }
 
-    /* TRAYECTORIAS FLUIDAS Y VISIBLES (MOVIMIENTO CONTINUO EVIDENTE) */
-    @keyframes jjpNeonGlide1 {
-      0%   { transform: translate(0, 0) scale(1) rotate(0deg); }
-      35%  { transform: translate(180px, 95px) scale(1.24) rotate(15deg); }
-      70%  { transform: translate(75px, 220px) scale(0.92) rotate(-10deg); }
-      100% { transform: translate(240px, 150px) scale(1.18) rotate(20deg); }
-    }
-    @keyframes jjpNeonGlide2 {
-      0%   { transform: translate(0, 0) scale(1) rotate(0deg); }
-      40%  { transform: translate(220px, -120px) scale(1.28) rotate(-18deg); }
-      75%  { transform: translate(140px, 130px) scale(0.90) rotate(12deg); }
-      100% { transform: translate(280px, 45px) scale(1.20) rotate(-15deg); }
-    }
-    @keyframes jjpNeonGlide3 {
-      0%   { transform: translate(0, 0) scale(1) rotate(0deg); }
-      30%  { transform: translate(190px, -160px) scale(1.25) rotate(22deg); }
-      70%  { transform: translate(95px, -85px) scale(0.94) rotate(-14deg); }
-      100% { transform: translate(250px, -195px) scale(1.18) rotate(18deg); }
-    }
-    @keyframes jjpNeonGlide4 {
-      0%   { transform: translate(0, 0) scale(1) rotate(0deg); }
-      35%  { transform: translate(-150px, 130px) scale(1.22) rotate(-20deg); }
-      70%  { transform: translate(175px, 85px) scale(0.92) rotate(15deg); }
-      100% { transform: translate(-90px, 215px) scale(1.16) rotate(-15deg); }
-    }
-    @keyframes jjpNeonGlide5 {
-      0%   { transform: translate(0, 0) scale(1) rotate(0deg); }
-      30%  { transform: translate(-190px, -95px) scale(1.25) rotate(16deg); }
-      70%  { transform: translate(-85px, 120px) scale(0.90) rotate(-18deg); }
-      100% { transform: translate(-235px, -55px) scale(1.16) rotate(14deg); }
-    }
-    @keyframes jjpNeonGlide6 {
-      0%   { transform: translate(0, 0) scale(1) rotate(0deg); }
-      40%  { transform: translate(160px, -130px) scale(1.20) rotate(-15deg); }
-      75%  { transform: translate(-130px, 65px) scale(0.93) rotate(12deg); }
-      100% { transform: translate(90px, 150px) scale(1.14) rotate(-10deg); }
-    }
-
-    /* BARRA LATERAL LIQUID GLASS */
+    /* BARRA LATERAL LIQUID GLASS CON TRANSICIÓN APPLE FLUIDA */
     .admin-aside, aside.aside {
-      background: rgba(10, 16, 28, 0.45) !important;
-      backdrop-filter: blur(32px) saturate(220%) !important;
-      -webkit-backdrop-filter: blur(32px) saturate(220%) !important;
+      background: rgba(8, 14, 26, 0.55) !important;
+      backdrop-filter: blur(36px) saturate(220%) !important;
+      -webkit-backdrop-filter: blur(36px) saturate(220%) !important;
       border-right: 1px solid rgba(255, 255, 255, 0.14) !important;
       box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.08), 10px 0 35px rgba(0, 0, 0, 0.4) !important;
-      transition: width 0.32s cubic-bezier(0.16, 1, 0.3, 1), transform 0.3s ease !important;
+      width: 240px !important;
+      transition: width 0.36s cubic-bezier(0.2, 0.9, 0.25, 1) !important;
       z-index: 200 !important;
+      overflow-x: hidden !important;
     }
 
     .admin-main, main.admin-main {
-      transition: margin-left 0.32s cubic-bezier(0.16, 1, 0.3, 1) !important;
+      transition: margin-left 0.36s cubic-bezier(0.2, 0.9, 0.25, 1) !important;
       position: relative; z-index: 2;
     }
     body.sidebar-collapsed .admin-main,
@@ -570,7 +664,7 @@
       margin-left: 74px !important;
     }
 
-    /* CABECERA */
+    /* CABECERA DE LA BARRA */
     .aside-brand {
       display: flex !important;
       align-items: center !important;
@@ -578,27 +672,36 @@
       padding: 16px 16px 14px !important;
       position: relative !important;
       border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+      min-height: 68px; box-sizing: border-box;
     }
     .aside-brand-left {
       display: flex; align-items: center; gap: 10px; overflow: hidden; white-space: nowrap;
     }
+
+    /* BOTÓN TOGGLE CON CHEVRON GIRATORIO (CERO JUMP) */
     .jjp-aside-toggle {
-      width: 28px; height: 28px; border-radius: 8px;
+      width: 28px; height: 28px; border-radius: 9px;
       background: rgba(255, 255, 255, 0.08);
       border: 1px solid rgba(255, 255, 255, 0.16);
       color: #fff;
       display: flex; align-items: center; justify-content: center;
-      cursor: pointer; transition: all 0.2s ease;
-      flex-shrink: 0; font-size: 11px; font-weight: 700;
+      cursor: pointer; flex-shrink: 0;
       backdrop-filter: blur(12px);
       box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.2);
+      transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1) !important;
     }
     .jjp-aside-toggle:hover {
-      background: rgba(255, 255, 255, 0.2);
+      background: rgba(255, 255, 255, 0.20);
       transform: scale(1.08);
     }
+    .jjp-aside-toggle .jjp-toggle-svg {
+      transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+    }
+    .admin-aside.collapsed .jjp-aside-toggle .jjp-toggle-svg {
+      transform: rotate(180deg) !important;
+    }
 
-    /* LOGO CON AURA VIVA */
+    /* LOGO CON AURA VIVA RESPIRABLE */
     .jjp-logo-animated {
       width: 38px; height: 38px; border-radius: 50%;
       border: 1.5px solid rgba(255, 255, 255, 0.25);
@@ -617,73 +720,92 @@
     }
     @media (prefers-reduced-motion: reduce) {
       .jjp-logo-animated { animation: none !important; }
-      .jjp-aurora-orb { animation: none !important; }
+      .jjp-aurora-canvas { display: none !important; }
     }
 
-    /* BOTONES DE GRUPO Y NAVEGACIÓN EN MODO EXPANDIDO */
-    .aside-nav .nav-group { display:flex; flex-direction:column; position:relative }
-    .aside-nav .nav-group-btn {
-      display:flex; align-items:center; gap:12px; width:100%;
-      padding:11px 16px; font-size:13.5px; font-weight:600;
-      color:rgba(255,255,255,.85); background:none; border:0; cursor:pointer;
-      font-family:inherit; text-align:left; transition:all .2s ease;
-      border-radius: 10px; margin: 2px 10px; width: calc(100% - 20px);
+    /* DESVANECIMIENTO SUAVE DE TEXTOS (CERO DISPLAY:NONE ABRUPTO) */
+    .aside-brand span,
+    .aside-brand em,
+    .aside-nav .a-txt,
+    .aside-nav .nav-caret,
+    .aside-nav .a-section,
+    .aside-ft .jjp-logout-txt,
+    .aside-ft > div:first-child {
+      white-space: nowrap;
+      overflow: hidden;
+      max-width: 170px;
+      opacity: 1;
+      transform: translateX(0);
+      transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+                  max-width 0.34s cubic-bezier(0.16, 1, 0.3, 1),
+                  transform 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+      display: inline-block;
     }
-    .aside-nav .nav-group-btn:hover {
-      background:rgba(255,255,255,.10); color:#fff;
-      box-shadow: 0 0 16px var(--cat-glow, transparent), inset 0 1px 1px rgba(255,255,255,0.2);
+
+    /* BOTONES DE GRUPO Y NAVEGACIÓN (METAMORFOSIS SUAVE A SQUIRCLE) */
+    .aside-nav .nav-group { display: flex; flex-direction: column; position: relative }
+    .aside-nav .nav-group-btn,
+    .aside-nav > a {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 14px;
+      margin: 3px 10px;
+      width: calc(100% - 20px);
+      height: 44px;
+      font-size: 13.5px; font-weight: 600;
+      color: rgba(255, 255, 255, 0.85); background: none; border: 0; cursor: pointer;
+      font-family: inherit; text-align: left;
+      border-radius: 12px;
+      box-sizing: border-box;
+      text-decoration: none;
+      transition: width 0.35s cubic-bezier(0.2, 0.9, 0.25, 1),
+                  height 0.35s cubic-bezier(0.2, 0.9, 0.25, 1),
+                  padding 0.35s cubic-bezier(0.2, 0.9, 0.25, 1),
+                  margin 0.35s cubic-bezier(0.2, 0.9, 0.25, 1),
+                  border-radius 0.35s cubic-bezier(0.2, 0.9, 0.25, 1),
+                  background 0.22s ease,
+                  box-shadow 0.22s ease !important;
     }
-    .aside-nav .nav-group-btn .a-ico {
-      width:22px; display:flex; align-items:center; justify-content:center; flex-shrink:0;
+    .aside-nav .nav-group-btn:hover,
+    .aside-nav > a:hover {
+      background: rgba(255, 255, 255, 0.10); color: #fff;
+      box-shadow: 0 0 16px var(--cat-glow, transparent), inset 0 1px 1px rgba(255, 255, 255, 0.2);
+    }
+    .aside-nav .nav-group-btn .a-ico,
+    .aside-nav > a .a-ico {
+      width: 22px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
       color: var(--cat-color, #10b981);
       filter: drop-shadow(0 0 6px var(--cat-color, transparent));
+      transition: transform 0.25s ease;
     }
-    .aside-nav .nav-group-btn .a-txt { flex:1 }
+    .aside-nav .nav-group-btn .a-txt,
+    .aside-nav > a .a-txt { flex: 1 }
     .aside-nav .nav-caret {
-      font-size:11px; opacity:.7; transition:transform .28s ease; flex-shrink:0;
+      font-size: 11px; opacity: .7; transition: transform .28s ease; flex-shrink: 0;
     }
-    .aside-nav .nav-group.open .nav-caret { transform:rotate(180deg) }
-    .aside-nav .nav-group.has-active > .nav-group-btn { color:#fff; font-weight:700 }
+    .aside-nav .nav-group.open .nav-caret { transform: rotate(180deg) }
+    .aside-nav .nav-group.has-active > .nav-group-btn { color: #fff; font-weight: 700 }
 
     /* SUBMENÚ ACORDEÓN EXPANDIBLE FLUIDO */
     .aside-nav .nav-sub {
-      display:grid; grid-template-rows:0fr;
-      transition:grid-template-rows .28s cubic-bezier(0.16, 1, 0.3, 1);
-      background:rgba(0,0,0,.22);
+      display: grid; grid-template-rows: 0fr;
+      transition: grid-template-rows .28s cubic-bezier(0.16, 1, 0.3, 1),
+                  opacity .2s ease;
+      background: rgba(0, 0, 0, .24);
       border-radius: 10px; margin: 0 10px 4px 10px;
     }
-    .aside-nav .nav-group.open .nav-sub { grid-template-rows:1fr }
-    .aside-nav .nav-sub > * { min-height:0; overflow:hidden }
+    .aside-nav .nav-group.open .nav-sub { grid-template-rows: 1fr }
+    .aside-nav .nav-sub > * { min-height: 0; overflow: hidden }
     .aside-nav .nav-sub a {
-      padding: 9px 12px 9px 36px; font-size:12.5px;
-      color:rgba(255,255,255,.75);
+      padding: 9px 12px 9px 36px; font-size: 12.5px;
+      color: rgba(255, 255, 255, .75);
       transition: all 0.18s ease;
-      text-decoration:none; display:flex; align-items:center; gap:10px;
+      text-decoration: none; display: flex; align-items: center; gap: 10px;
     }
-    .aside-nav .nav-sub a:hover { color:#fff; background:rgba(255,255,255,.12); padding-left:40px }
+    .aside-nav .nav-sub a:hover { color: #fff; background: rgba(255, 255, 255, .12); padding-left: 40px }
     .aside-nav .nav-sub a.on {
-      background:var(--cat-glow, rgba(16, 185, 129, 0.25)); color:#fff;
-      border-left:3px solid var(--cat-color, #10b981);
-      font-weight:700;
-    }
-
-    /* ENLACES INDIVIDUALES EXPANDIDOS */
-    .aside-nav a {
-      display:flex; align-items:center; gap:12px; padding:11px 16px;
-      font-size:13.5px; font-weight:600; color:rgba(255,255,255,.85);
-      transition:all .2s ease; cursor:pointer; text-decoration:none;
-      border-radius: 10px; margin: 2px 10px; width: calc(100% - 20px);
-    }
-    .aside-nav a:hover { background:rgba(255,255,255,.10); color:#fff }
-    .aside-nav a.on {
-      background:rgba(255,255,255,.16); color:#fff;
-      border-left:3px solid var(--cat-color, #10b981);
-      font-weight:700;
-    }
-    .aside-nav a .a-ico {
-      width:22px; display:flex; align-items:center; justify-content:center; flex-shrink:0;
-      color: var(--cat-color, #fff);
-      filter: drop-shadow(0 0 6px var(--cat-color, transparent));
+      background: var(--cat-glow, rgba(16, 185, 129, 0.25)); color: #fff;
+      border-left: 3px solid var(--cat-color, #10b981);
+      font-weight: 700;
     }
 
     /* ==============================================================
@@ -691,17 +813,6 @@
        ============================================================== */
     .admin-aside.collapsed, aside.aside.collapsed {
       width: 74px !important;
-    }
-    .admin-aside.collapsed .aside-brand span,
-    .admin-aside.collapsed .aside-brand em,
-    .admin-aside.collapsed .jjp-cmd-pill,
-    .admin-aside.collapsed .a-section,
-    .admin-aside.collapsed .aside-ft > div:first-child,
-    .admin-aside.collapsed .nav-group-btn .a-txt,
-    .admin-aside.collapsed .nav-group-btn .nav-caret,
-    .admin-aside.collapsed .aside-nav > a .a-txt,
-    .admin-aside.collapsed .nav-sub {
-      display: none !important;
     }
 
     .admin-aside.collapsed .aside-brand {
@@ -715,9 +826,32 @@
       position: absolute; bottom: -12px; right: 23px; z-index: 10;
     }
 
+    /* Desvanecimiento ordenado sin cortes bruscos */
+    .admin-aside.collapsed .aside-brand span,
+    .admin-aside.collapsed .aside-brand em,
+    .admin-aside.collapsed .aside-nav .a-txt,
+    .admin-aside.collapsed .aside-nav .nav-caret,
+    .admin-aside.collapsed .aside-nav .a-section,
+    .admin-aside.collapsed .aside-ft .jjp-logout-txt,
+    .admin-aside.collapsed .aside-ft > div:first-child {
+      opacity: 0 !important;
+      max-width: 0 !important;
+      transform: translateX(-14px) !important;
+      pointer-events: none !important;
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+
+    .admin-aside.collapsed .nav-sub {
+      grid-template-rows: 0fr !important;
+      opacity: 0 !important;
+      pointer-events: none !important;
+      margin: 0 !important;
+    }
+
     .admin-aside.collapsed .nav-group,
     .admin-aside.collapsed .aside-nav > a {
-      margin: 8px auto !important;
+      margin: 6px auto !important;
       width: 50px !important;
       display: flex !important;
       justify-content: center !important;
@@ -731,15 +865,12 @@
       padding: 0 !important;
       margin: 0 !important;
       border-radius: 14px !important;
+      justify-content: center !important;
       background: rgba(255, 255, 255, 0.06) !important;
       backdrop-filter: blur(18px) saturate(200%) !important;
       -webkit-backdrop-filter: blur(18px) saturate(200%) !important;
       border: 1px solid rgba(255, 255, 255, 0.16) !important;
       box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.28), 0 4px 16px var(--cat-glow, rgba(0,0,0,0.25)) !important;
-      display: flex !important;
-      align-items: center !important;
-      justify-content: center !important;
-      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
       cursor: pointer !important;
     }
 
@@ -748,7 +879,7 @@
       width: auto !important;
       color: var(--cat-color, #10b981) !important;
       filter: drop-shadow(0 0 8px var(--cat-color, #10b981)) !important;
-      transition: transform 0.2s ease !important;
+      transform: scale(1.08);
     }
 
     .admin-aside.collapsed .nav-group:hover .nav-group-btn,
@@ -772,7 +903,7 @@
     .jjp-liquid-flyout-card {
       position: fixed;
       width: 250px;
-      background: rgba(10, 16, 28, 0.65) !important;
+      background: rgba(10, 16, 28, 0.75) !important;
       backdrop-filter: blur(40px) saturate(240%) !important;
       -webkit-backdrop-filter: blur(40px) saturate(240%) !important;
       border: 1.5px solid var(--cat-color, rgba(255, 255, 255, 0.28)) !important;
@@ -811,7 +942,7 @@
       padding: 9px 12px !important;
       border-radius: 10px !important;
       font-size: 13px !important; font-weight: 600 !important;
-      color: rgba(255, 255, 255, 0.82) !important;
+      color: rgba(255, 255, 255, 0.85) !important;
       text-decoration: none !important;
       transition: all 0.16s ease !important;
     }

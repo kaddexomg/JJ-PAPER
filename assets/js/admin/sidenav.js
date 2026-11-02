@@ -453,253 +453,186 @@
     }
   }
 
-  function injectBackgroundAurora() {
-    if (document.getElementById('jjpAuroraCanvas')) return;
-    const canvas = document.createElement('canvas');
-    canvas.id = 'jjpAuroraCanvas';
-    canvas.className = 'jjp-aurora-canvas';
-    canvas.setAttribute('aria-hidden', 'true');
-    document.body.prepend(canvas);
+  /* ======================================================================
+     MOTOR DE ILUMINACIÓN FLUIDA AURORA LIQUID GLASS (GPU HARDWARE COMPOSITING)
+     ----------------------------------------------------------------------
+     - Corrientes laminares armónicas continuas (Lissajous multioctava)
+     - Cero tirones de FPS ("cero caseo"), 120 FPS fluidos por aceleración GPU
+     - Flujo orgánico continuo, sin choques rígidos ni rebotes artificiales
+     - Reacción cromática viva al interactuar con categorías y ratón
+     ====================================================================== */
 
-    initLivingLightsEngine(canvas);
+  function injectBackgroundAurora() {
+    const existingCanvas = document.getElementById('jjpAuroraCanvas');
+    if (existingCanvas) existingCanvas.remove();
+    if (document.getElementById('jjpAuroraFlow')) return;
+
+    const flowContainer = document.createElement('div');
+    flowContainer.id = 'jjpAuroraFlow';
+    flowContainer.className = 'jjp-aurora-flow';
+    flowContainer.setAttribute('aria-hidden', 'true');
+    document.body.prepend(flowContainer);
+
+    initLiquidAuroraFlowEngine(flowContainer);
   }
 
-  /* ---- MOTOR DE LUCES VIVAS (FÍSICA DE COLISIÓN, ONDAS DE CHOQUE Y REACCIÓN A CATEGORÍAS) ---- */
-  function initLivingLightsEngine(canvas) {
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+  function initLiquidAuroraFlowEngine(container) {
+    let width = window.innerWidth;
+    let height = window.innerHeight;
 
-    let width = 0;
-    let height = 0;
-    function resize() {
-      width = canvas.width = window.innerWidth;
-      height = canvas.height = window.innerHeight;
+    function onResize() {
+      width = window.innerWidth;
+      height = window.innerHeight;
     }
-    resize();
-    window.addEventListener('resize', resize);
+    window.addEventListener('resize', onResize);
 
+    // 5 Corrientes armónicas de luz líquida orgánica
+    const STREAMS_SPEC = [
+      {
+        id: 0, // Lateral / Sidebar Reactor (Luz que retroilumina la barra de navegación)
+        baseX: 0.10, baseY: 0.38,
+        radius: 360,
+        fx1: 0.00030, fx2: 0.00045, fy1: 0.00038, fy2: 0.00058,
+        px1: 0.0, px2: 1.5, py1: 0.8, py2: 2.3,
+        ampX1: 90, ampX2: 50, ampY1: 160, ampY2: 70,
+        fs: 0.00048, ps: 0.0,
+        bg: 'radial-gradient(circle at 40% 40%, rgba(16, 185, 129, 0.78) 0%, rgba(6, 182, 212, 0.45) 45%, transparent 75%)'
+      },
+      {
+        id: 1, // Corriente Superior Eléctrica (Cyan / Zafiro)
+        baseX: 0.48, baseY: 0.20,
+        radius: 340,
+        fx1: 0.00036, fx2: 0.00052, fy1: 0.00029, fy2: 0.00046,
+        px1: 1.2, px2: 2.8, py1: 0.4, py2: 1.9,
+        ampX1: 130, ampX2: 65, ampY1: 90, ampY2: 45,
+        fs: 0.00058, ps: 1.4,
+        bg: 'radial-gradient(circle at 50% 50%, rgba(6, 182, 212, 0.72) 0%, rgba(56, 189, 248, 0.42) 45%, transparent 75%)'
+      },
+      {
+        id: 2, // Vórtice Cósmico Central (Violeta / Fucsia Profundo)
+        baseX: 0.72, baseY: 0.40,
+        radius: 380,
+        fx1: 0.00028, fx2: 0.00042, fy1: 0.00042, fy2: 0.00064,
+        px1: 2.5, px2: 0.3, py1: 1.7, py2: 3.1,
+        ampX1: 120, ampX2: 60, ampY1: 135, ampY2: 65,
+        fs: 0.00042, ps: 2.8,
+        bg: 'radial-gradient(circle at 45% 45%, rgba(139, 92, 246, 0.70) 0%, rgba(236, 72, 153, 0.38) 45%, transparent 75%)'
+      },
+      {
+        id: 3, // Corriente Cálida Inferior (Ámbar Dorado / Mandarina)
+        baseX: 0.28, baseY: 0.76,
+        radius: 320,
+        fx1: 0.00040, fx2: 0.00058, fy1: 0.00032, fy2: 0.00050,
+        px1: 3.1, px2: 1.9, py1: 2.4, py2: 0.7,
+        ampX1: 105, ampX2: 50, ampY1: 110, ampY2: 55,
+        fs: 0.00052, ps: 4.1,
+        bg: 'radial-gradient(circle at 50% 50%, rgba(245, 158, 11, 0.70) 0%, rgba(249, 115, 22, 0.35) 45%, transparent 75%)'
+      },
+      {
+        id: 4, // Resplandor de Horizonte (Rosa Aurora / Cielo Glacial)
+        baseX: 0.82, baseY: 0.76,
+        radius: 350,
+        fx1: 0.00034, fx2: 0.00048, fy1: 0.00037, fy2: 0.00055,
+        px1: 0.7, px2: 3.4, py1: 3.2, py2: 1.2,
+        ampX1: 115, ampX2: 55, ampY1: 100, ampY2: 50,
+        fs: 0.00048, ps: 5.2,
+        bg: 'radial-gradient(circle at 50% 50%, rgba(236, 72, 153, 0.65) 0%, rgba(56, 189, 248, 0.35) 45%, transparent 75%)'
+      }
+    ];
+
+    const streams = STREAMS_SPEC.map(spec => {
+      const el = document.createElement('div');
+      el.className = `jjp-flow-stream jjp-stream-${spec.id}`;
+      el.style.width = `${spec.radius * 2}px`;
+      el.style.height = `${spec.radius * 2}px`;
+      el.style.background = spec.bg;
+      container.appendChild(el);
+
+      return {
+        ...spec,
+        el,
+        curX: spec.baseX * width,
+        curY: spec.baseY * height,
+        curScale: 1.0,
+        offsetX: 0,
+        offsetY: 0,
+        boostScale: 1.0
+      };
+    });
+
+    // Ratón con amortiguación suave de fluidos
     const mouse = { x: -1000, y: -1000 };
     window.addEventListener('mousemove', (e) => {
       mouse.x = e.clientX;
       mouse.y = e.clientY;
-    });
+    }, { passive: true });
 
-    function hexToRgb(hex) {
-      if (!hex) return { r: 56, g: 189, b: 248 };
-      hex = hex.replace(/^#/, '');
-      if (hex.length === 3) hex = hex.split('').map(s => s + s).join('');
-      const num = parseInt(hex, 16);
-      return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
-    }
-
-    // 6 Seres de Luz con dinámicas y velocidades variables para máximo dinamismo
-    const SPECTRUM = [
-      { r: 0,   g: 245, b: 255, speed: 1.10, dir: 0.2 },  // Cyan Rápido
-      { r: 0,   g: 255, b: 136, speed: 0.65, dir: 1.8 },  // Esmeralda Ondulante
-      { r: 168, g: 85,  b: 247, speed: 0.90, dir: 3.4 },  // Violeta Cósmico
-      { r: 255, g: 0,   b: 128, speed: 1.25, dir: 4.8 },  // Fucsia Energético
-      { r: 255, g: 183, b: 3,   speed: 0.55, dir: 2.3 },  // Ámbar Calmado
-      { r: 56,  g: 189, b: 248, speed: 0.80, dir: 5.6 }   // Zafiro Equilibrado
-    ];
-
-    const lights = SPECTRUM.map((col, idx) => {
-      return {
-        x: (width * 0.2) + Math.cos(col.dir) * (width * 0.3) + (Math.random() - 0.5) * 80,
-        y: (height * 0.35) + Math.sin(col.dir) * (height * 0.25) + (Math.random() - 0.5) * 80,
-        vx: Math.cos(col.dir) * col.speed,
-        vy: Math.sin(col.dir) * col.speed,
-        baseSpeed: col.speed,
-        baseRadius: Math.min(width, height) * 0.24 + Math.random() * 50,
-        radius: 240,
-        phase: Math.random() * Math.PI * 2,
-        pulseSpeed: 0.018 + Math.random() * 0.012,
-        color: { r: col.r, g: col.g, b: col.b },
-        targetColor: { r: col.r, g: col.g, b: col.b },
-        collisionFlash: 0,
-        wanderTimer: Math.floor(Math.random() * 90)
-      };
-    });
-
-    // API GLOBAL: Reacción inmediata al cambiar o posarse en una categoría
-    window.__jjpLightReaction = function(colorHex, sourceEl) {
+    // REACCIÓN GLOBAL AL POSARSE O HACER CLIC EN CATEGORÍAS
+    window.__jjpLightReaction = function (colorHex, sourceEl) {
       if (!colorHex) return;
-      const rgb = hexToRgb(colorHex);
-      let targetX = width * 0.15;
-      let targetY = height * 0.35;
+
+      let targetY = height * 0.38;
       if (sourceEl && typeof sourceEl.getBoundingClientRect === 'function') {
         const r = sourceEl.getBoundingClientRect();
-        targetX = Math.min(width * 0.32, r.right + 30);
         targetY = r.top + (r.height / 2);
       }
 
-      // Encontrar el orbe más cercano
-      let closest = lights[0];
-      let minDist = Infinity;
-      lights.forEach(l => {
-        const d = Math.hypot(l.x - targetX, l.y - targetY);
-        if (d < minDist) { minDist = d; closest = l; }
-      });
+      // El Stream 0 (retroiluminación de la barra) responde inmediatamente
+      const s0 = streams[0];
+      if (s0) {
+        s0.el.style.background = `radial-gradient(circle at 40% 40%, ${colorHex} 0%, rgba(255,255,255,0.2) 25%, ${colorHex}44 50%, transparent 75%)`;
+        s0.boostScale = 1.38;
+        s0.offsetY = (targetY - (s0.baseY * height)) * 0.80;
+      }
 
-      // Efecto: el orbe adopta el color de la categoría y lanza una onda de choque
-      closest.targetColor = rgb;
-      closest.collisionFlash = 1.6;
-      const pushAngle = Math.atan2(closest.y - targetY, closest.x - targetX);
-      closest.vx = Math.cos(pushAngle) * 2.2;
-      closest.vy = Math.sin(pushAngle) * 2.2;
-
-      // Ondas dinámicas a los demás orbes
-      lights.forEach(other => {
-        if (other !== closest) {
-          const dx = other.x - closest.x;
-          const dy = other.y - closest.y;
-          const dist = Math.hypot(dx, dy) || 1;
-          other.vx += (dx / dist) * 0.9;
-          other.vy += (dy / dist) * 0.9;
-          other.collisionFlash = Math.min(1.0, other.collisionFlash + 0.35);
-        }
-      });
+      // Onda armónica secundaria hacia los demás flujos (sin tirones)
+      for (let i = 1; i < streams.length; i++) {
+        const st = streams[i];
+        st.boostScale = 1.15;
+        st.offsetX += (Math.random() - 0.5) * 35;
+        st.offsetY += (targetY - st.curY) * 0.10;
+      }
     };
 
     let animId = null;
-    let lastTime = performance.now();
 
-    function render(now) {
+    function render(time) {
       if (document.hidden) {
         animId = requestAnimationFrame(render);
         return;
       }
 
-      const dt = Math.min(2.0, (now - lastTime) / 16.66) || 1.0;
-      lastTime = now;
+      for (let i = 0; i < streams.length; i++) {
+        const s = streams[i];
 
-      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        // 1. Ecuación de flujo laminar armónico continuo (Lissajous multioctava)
+        const naturalX = (s.baseX * width) + Math.sin(time * s.fx1 + s.px1) * s.ampX1 + Math.cos(time * s.fx2 + s.px2) * s.ampX2;
+        const naturalY = (s.baseY * height) + Math.cos(time * s.fy1 + s.py1) * s.ampY1 + Math.sin(time * s.fy2 + s.py2) * s.ampY2;
+        const naturalScale = 1.0 + Math.sin(time * s.fs + s.ps) * 0.15;
 
-      ctx.clearRect(0, 0, width, height);
-      ctx.globalCompositeOperation = isDark ? 'screen' : 'multiply';
-
-      // 1. Actualizar física de colisiones y trayectorias dinámicas
-      for (let i = 0; i < lights.length; i++) {
-        const l = lights[i];
-        l.phase += l.pulseSpeed * dt;
-        l.radius = l.baseRadius * (0.86 + Math.sin(l.phase) * 0.16 + l.collisionFlash * 0.30);
-
-        if (l.collisionFlash > 0) {
-          l.collisionFlash = Math.max(0, l.collisionFlash - 0.035 * dt);
-        }
-
-        // Transición de color suave hacia targetColor
-        l.color.r += (l.targetColor.r - l.color.r) * 0.05 * dt;
-        l.color.g += (l.targetColor.g - l.color.g) * 0.05 * dt;
-        l.color.b += (l.targetColor.b - l.color.b) * 0.05 * dt;
-
-        // Variación continua de rumbo (vida propia dinámica)
-        l.wanderTimer -= dt;
-        if (l.wanderTimer <= 0) {
-          l.wanderTimer = 70 + Math.random() * 110;
-          const steer = (Math.random() - 0.5) * 0.45;
-          const curSpeed = Math.hypot(l.vx, l.vy) || l.baseSpeed;
-          const curAngle = Math.atan2(l.vy, l.vx) + steer;
-          l.vx = Math.cos(curAngle) * curSpeed;
-          l.vy = Math.sin(curAngle) * curSpeed;
-        }
-
-        // Interacción sutil con el ratón
-        const dmx = l.x - mouse.x;
-        const dmy = l.y - mouse.y;
+        // 2. Interacción fluida con el ratón (deflexión suave como agua líquida)
+        const dmx = s.curX - mouse.x;
+        const dmy = s.curY - mouse.y;
         const distMouse = Math.hypot(dmx, dmy);
-        if (distMouse < 220 && distMouse > 10) {
-          const mForce = (220 - distMouse) * 0.0008 * dt;
-          l.vx += (dmx / distMouse) * mForce;
-          l.vy += (dmy / distMouse) * mForce;
+        if (distMouse < 260 && distMouse > 10) {
+          const force = (260 - distMouse) * 0.08;
+          s.offsetX += (dmx / distMouse) * force * 0.07;
+          s.offsetY += (dmy / distMouse) * force * 0.07;
         }
 
-        // Amortiguación de velocidad hacia baseSpeed
-        const curSpd = Math.hypot(l.vx, l.vy);
-        if (curSpd > 2.0) {
-          l.vx = (l.vx / curSpd) * 2.0;
-          l.vy = (l.vy / curSpd) * 2.0;
-        } else if (curSpd < 0.35) {
-          l.vx = (l.vx / (curSpd || 1)) * l.baseSpeed;
-          l.vy = (l.vy / (curSpd || 1)) * l.baseSpeed;
-        }
+        // 3. Amortiguación elástica hacia el curso natural
+        s.curX += (naturalX + s.offsetX - s.curX) * 0.055;
+        s.curY += (naturalY + s.offsetY - s.curY) * 0.055;
+        s.curScale += (naturalScale * s.boostScale - s.curScale) * 0.055;
 
-        l.x += l.vx * dt;
-        l.y += l.vy * dt;
+        s.offsetX *= 0.94;
+        s.offsetY *= 0.94;
+        s.boostScale += (1.0 - s.boostScale) * 0.035;
 
-        // Rebotes elásticos en bordes
-        const pad = l.radius * 0.20;
-        if (l.x < pad) {
-          l.x = pad;
-          l.vx = Math.abs(l.vx) * 0.95 + (Math.random() - 0.5) * 0.2;
-          l.collisionFlash = Math.min(1.0, l.collisionFlash + 0.4);
-        } else if (l.x > width - pad) {
-          l.x = width - pad;
-          l.vx = -Math.abs(l.vx) * 0.95 + (Math.random() - 0.5) * 0.2;
-          l.collisionFlash = Math.min(1.0, l.collisionFlash + 0.4);
-        }
-        if (l.y < pad) {
-          l.y = pad;
-          l.vy = Math.abs(l.vy) * 0.95 + (Math.random() - 0.5) * 0.2;
-          l.collisionFlash = Math.min(1.0, l.collisionFlash + 0.4);
-        } else if (l.y > height - pad) {
-          l.y = height - pad;
-          l.vy = -Math.abs(l.vy) * 0.95 + (Math.random() - 0.5) * 0.2;
-          l.collisionFlash = Math.min(1.0, l.collisionFlash + 0.4);
-        }
-
-        // 2. Colisión elástica entre orbes (choque con intercambio de impulso)
-        for (let j = i + 1; j < lights.length; j++) {
-          const l2 = lights[j];
-          const dx = l2.x - l.x;
-          const dy = l2.y - l.y;
-          const dist = Math.hypot(dx, dy);
-          const minDist = (l.radius + l2.radius) * 0.42;
-
-          if (dist < minDist && dist > 1) {
-            const angle = Math.atan2(dy, dx);
-            const overlap = minDist - dist;
-            const force = overlap * 0.004 * dt;
-
-            l.vx -= Math.cos(angle) * force;
-            l.vy -= Math.sin(angle) * force;
-            l2.vx += Math.cos(angle) * force;
-            l2.vy += Math.sin(angle) * force;
-
-            l.collisionFlash = Math.min(1.0, l.collisionFlash + 0.5);
-            l2.collisionFlash = Math.min(1.0, l2.collisionFlash + 0.5);
-          }
-        }
-      }
-
-      // 3. Renderizar gradientes radiales optimizados (adaptados a Claro y Oscuro)
-      for (let i = 0; i < lights.length; i++) {
-        const l = lights[i];
-        const rad = Math.max(20, l.radius);
-        const grad = ctx.createRadialGradient(l.x, l.y, 0, l.x, l.y, rad);
-        const col = l.color;
-
-        if (isDark) {
-          // Modo Oscuro: Núcleos neón ricos y destellos en screen
-          const alphaCore = Math.min(1.0, 0.65 + l.collisionFlash * 0.30);
-          const alphaMid = 0.28 + l.collisionFlash * 0.18;
-          const alphaOuter = 0.05;
-          grad.addColorStop(0, `rgba(${Math.round(col.r)}, ${Math.round(col.g)}, ${Math.round(col.b)}, ${alphaCore})`);
-          grad.addColorStop(0.35, `rgba(${Math.round(col.r)}, ${Math.round(col.g)}, ${Math.round(col.b)}, ${alphaMid})`);
-          grad.addColorStop(0.70, `rgba(${Math.round(col.r)}, ${Math.round(col.g)}, ${Math.round(col.b)}, ${alphaOuter})`);
-          grad.addColorStop(1, `rgba(${Math.round(col.r)}, ${Math.round(col.g)}, ${Math.round(col.b)}, 0)`);
-        } else {
-          // Modo Claro: Brillo pastel translúcido que nunca oscurece ni mancha el texto
-          const alphaCore = Math.min(0.24, 0.12 + l.collisionFlash * 0.10);
-          const alphaMid = 0.06 + l.collisionFlash * 0.04;
-          grad.addColorStop(0, `rgba(${Math.round(col.r)}, ${Math.round(col.g)}, ${Math.round(col.b)}, ${alphaCore})`);
-          grad.addColorStop(0.40, `rgba(${Math.round(col.r)}, ${Math.round(col.g)}, ${Math.round(col.b)}, ${alphaMid})`);
-          grad.addColorStop(1, `rgba(${Math.round(col.r)}, ${Math.round(col.g)}, ${Math.round(col.b)}, 0)`);
-        }
-
-        ctx.fillStyle = grad;
-        ctx.beginPath();
-        ctx.arc(l.x, l.y, rad, 0, Math.PI * 2);
-        ctx.fill();
+        // 4. Transformación de Hardware acelerada por GPU (Compositor puro: 0ms Paint)
+        const tx = Math.round(s.curX - s.radius);
+        const ty = Math.round(s.curY - s.radius);
+        s.el.style.transform = `translate3d(${tx}px, ${ty}px, 0) scale(${s.curScale.toFixed(3)})`;
       }
 
       animId = requestAnimationFrame(render);
@@ -712,11 +645,30 @@
   function injectCSS() {
     if (document.getElementById('jjp-sidenav-css')) return;
     const css = `
-    /* CANVAS DE LUCES VIVAS (ADAPTADO A CLARO Y OSCURO, CERO CONSUMO) */
-    .jjp-aurora-canvas {
+    /* FLUJO DE AURORA LÍQUIDA (GPU ACCELERATED, 0% CPU, NUNCA SE CASEA) */
+    .jjp-aurora-flow {
       position: fixed; inset: 0; width: 100vw; height: 100vh;
-      pointer-events: none; z-index: 1;
-      opacity: 0.95;
+      pointer-events: none; z-index: 0;
+      overflow: hidden; contain: strict;
+      filter: blur(80px) saturate(220%);
+      -webkit-filter: blur(80px) saturate(220%);
+      opacity: 0.88;
+      transition: opacity 0.6s ease;
+    }
+
+    [data-theme="light"] .jjp-aurora-flow {
+      opacity: 0.38;
+      filter: blur(90px) saturate(180%);
+      -webkit-filter: blur(90px) saturate(180%);
+    }
+
+    .jjp-flow-stream {
+      position: absolute; top: 0; left: 0;
+      border-radius: 50%;
+      pointer-events: none;
+      will-change: transform;
+      transform: translate3d(0, 0, 0);
+      transition: background 0.85s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.85s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
     /* BARRA LATERAL LIQUID GLASS */

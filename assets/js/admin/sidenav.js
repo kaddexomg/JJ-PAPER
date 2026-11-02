@@ -1,110 +1,161 @@
 /* ======================================================
-   JJ Paper — Barra lateral unificada (admin + vendedor)
+   JJ Paper — Barra lateral unificada con Liquid Glass y Control Agéntico
    ------------------------------------------------------
-   FUENTE ÚNICA DE VERDAD del sidebar de staff.
-   Reconstruye el <nav class="aside-nav"> de cada página para que:
-     • TODOS los botones estén siempre visibles (se acabó el drift
-       de que "en WhatsApp no sale Correo", etc.).
-     • Las secciones con sub-funciones se desplieguen con animación.
-   Auto-inyecta su propio CSS: no toca ningún archivo .css compartido.
-   (Distinto de assets/js/nav.js, que es el nav del sitio público.)
+   FUENTE ÚNICA DE VERDAD del sidebar de staff (admin + vendedor).
+   • Colapso/Expansión fluido con persistencia en localStorage.
+   • Efecto Liquid Glass (blur + transparencia + saturación).
+   • Cuadros de categoría con luz y halo de color independiente al colapsar:
+       - Ventas: Esmeralda / Verde Neón (#10b981)
+       - Comunicación: Cyan / Celeste (#06b6d4)
+       - Catálogo: Púrpura / Violeta (#8b5cf6)
+       - Inventario: Ámbar / Dorado Cálido (#f59e0b)
+       - Sistema: Magenta / Rosa Neón (#ec4899)
+       - Dashboard: Azul Eléctrico (#3b82f6)
+   • Submenús desplegables fluidos y flyout en hover al estar colapsado.
+   • Animación inclusiva en el Logo JJ Paper arriba.
+   • Botón preciso y visible para Cerrar Sesión.
+   • Paleta rápida de comandos (Ctrl+K).
    ====================================================== */
 (function () {
   const path = location.pathname;
   const isVendedor = /\/vendedor(\/|$)/i.test(path);
   const current = (path.split('/').pop() || 'index.html').toLowerCase() || 'index.html';
 
-  /* ---- Config de navegación --------------------------------------
-     item : { href, ico, label, ext?, action? }
-     grupo: { group, ico, items:[item...] }  → desplegable animado
-     título de sección: { section:'…' }                              */
+  /* ---- Config de navegación con colores y halos propios ---- */
   const ADMIN_NAV = [
     { section: 'Principal' },
-    { href: 'index.html', ico: '📊', label: 'Dashboard' },
-    { group: 'Ventas', ico: '🛒', items: [
-      { href: 'pos.html',          ico: '📋', label: 'Crear Pedido' },
-      { href: 'cotizador.html',    ico: '📋', label: 'Nueva Cotización' },
-      { href: 'pedidos.html',      ico: '🛒', label: 'Pedidos' },
-      { href: 'cotizaciones.html', ico: '📂', label: 'Cotizaciones' },
-      { href: 'prospectos.html',   ico: '🎯', label: 'Prospectos B2B' },
-      { href: 'documentos.html',   ico: '📝', label: 'Documentos & Formas' },
-    ]},
-    { group: 'Comunicación', ico: '💬', items: [
-      { href: 'whatsapp.html', ico: '💬', label: 'WhatsApp' },
-      { href: 'difusion.html', ico: '📢', label: 'Difusión WA' },
-      { href: 'campanas-email.html', ico: '📣', label: 'Campañas Email' },
-      { href: 'correo.html',   ico: '📧', label: 'Correo' },
-    ]},
+    { href: 'index.html', ico: '📊', label: 'Dashboard', color: '#3b82f6', glow: 'rgba(59, 130, 246, 0.45)' },
+    { 
+      group: 'Ventas', 
+      ico: '🛒', 
+      color: '#10b981', 
+      glow: 'rgba(16, 185, 129, 0.45)',
+      items: [
+        { href: 'pos.html',          ico: '📋', label: 'Crear Pedido' },
+        { href: 'cotizador.html',    ico: '📋', label: 'Nueva Cotización' },
+        { href: 'pedidos.html',      ico: '🛒', label: 'Pedidos' },
+        { href: 'cotizaciones.html', ico: '📂', label: 'Cotizaciones' },
+        { href: 'prospectos.html',   ico: '🎯', label: 'Prospectos B2B' },
+        { href: 'documentos.html',   ico: '📝', label: 'Documentos & Formas' },
+      ]
+    },
+    { 
+      group: 'Comunicación', 
+      ico: '💬', 
+      color: '#06b6d4', 
+      glow: 'rgba(6, 182, 212, 0.45)',
+      items: [
+        { href: 'whatsapp.html', ico: '💬', label: 'WhatsApp' },
+        { href: 'difusion.html', ico: '📢', label: 'Difusión WA' },
+        { href: 'campanas-email.html', ico: '📣', label: 'Campañas Email' },
+        { href: 'correo.html',   ico: '📧', label: 'Correo' },
+      ]
+    },
     { section: 'Catálogo' },
-    { group: 'Catálogo', ico: '📦', items: [
-      { href: 'productos.html', ico: '📦', label: 'Productos' },
-      { href: 'estudio-fotos.html', ico: '🧠', label: 'Estudio IA de Fotos' },
-      { href: 'listas-precios.html', ico: '📑', label: 'Listas & MixNet' },
-      { href: 'precios.html',   ico: '💱', label: 'Precios' },
-      { href: 'clientes.html',  ico: '👥', label: 'Clientes CRM' },
-      { href: 'marcas.html',    ico: '🔖', label: 'Marcas' },
-      { href: 'unidades.html',  ico: '📐', label: 'Unidades' },
-      { href: 'catalogo.html',     ico: '📗', label: 'Catálogo' },
-    ]},
-    { group: 'Inventario', ico: '📁', items: [
-      { href: 'inventario.html', ico: '📁', label: 'Inventario' },
-      { href: 'conteo.html',     ico: '🔢', label: 'Control de conteo' },
-      { href: 'escaner.html',    ico: '📷', label: 'Escáner' },
-      { href: 'lan.html',        ico: '📡', label: 'Conteo WiFi (LAN)' },
-    ]},
-    { href: 'facturas.html', ico: '📃', label: 'Cuentas por Pagar' },
+    { 
+      group: 'Catálogo', 
+      ico: '📦', 
+      color: '#8b5cf6', 
+      glow: 'rgba(139, 92, 246, 0.45)',
+      items: [
+        { href: 'productos.html', ico: '📦', label: 'Productos' },
+        { href: 'estudio-fotos.html', ico: '🧠', label: 'Estudio IA de Fotos' },
+        { href: 'listas-precios.html', ico: '📑', label: 'Listas & MixNet' },
+        { href: 'precios.html',   ico: '💱', label: 'Precios' },
+        { href: 'clientes.html',  ico: '👥', label: 'Clientes CRM' },
+        { href: 'marcas.html',    ico: '🔖', label: 'Marcas' },
+        { href: 'unidades.html',  ico: '📐', label: 'Unidades' },
+        { href: 'catalogo.html',     ico: '📗', label: 'Catálogo' },
+      ]
+    },
+    { 
+      group: 'Inventario', 
+      ico: '📁', 
+      color: '#f59e0b', 
+      glow: 'rgba(245, 158, 11, 0.45)',
+      items: [
+        { href: 'inventario.html', ico: '📁', label: 'Inventario' },
+        { href: 'conteo.html',     ico: '🔢', label: 'Control de conteo' },
+        { href: 'escaner.html',    ico: '📷', label: 'Escáner' },
+        { href: 'lan.html',        ico: '📡', label: 'Conteo WiFi (LAN)' },
+        { href: 'facturas.html',   ico: '📃', label: 'Cuentas por Pagar' },
+      ]
+    },
     { section: 'Sistema' },
-    { href: 'mixnet.html',     ico: '📁', label: 'Puente MixNet ERP' },
-    { href: 'monitor.html',    ico: '⚡', label: 'Monitor & Cuotas' },
-    { href: 'vendedores.html', ico: '👥', label: 'Vendedores' },
-    { href: 'ajustes.html',    ico: '⚙', label: 'Ajustes' },
-    { section: 'Sitio Público' },
-    { href: '/catalogo', ico: '🌐', label: 'Catálogo Cliente', ext: true },
-    { href: '/catalogo_impreso', ico: '🖨️', label: 'Catálogo con QR (Calle)', ext: true },
-    { action: 'logout', ico: '🔓', label: 'Cerrar Sesión' },
+    { 
+      group: 'Sistema', 
+      ico: '⚡', 
+      color: '#ec4899', 
+      glow: 'rgba(236, 72, 153, 0.45)',
+      items: [
+        { href: 'mixnet.html',     ico: '📁', label: 'Puente MixNet ERP' },
+        { href: 'monitor.html',    ico: '⚡', label: 'Monitor & Cuotas' },
+        { href: 'vendedores.html', ico: '👥', label: 'Vendedores' },
+        { href: 'ajustes.html',    ico: '⚙️', label: 'Ajustes' },
+        { href: '/catalogo',       ico: '🌐', label: 'Catálogo Cliente', ext: true },
+        { href: '/catalogo_impreso', ico: '🖨️', label: 'Catálogo con QR (Calle)', ext: true },
+      ]
+    }
   ];
 
   const VENDEDOR_NAV = [
-    { section: 'Ventas' },
-    { href: 'index.html', ico: '📊', label: 'Mi Panel' },
-    { group: 'Vender', ico: '💰', items: [
-      { href: 'pos.html',          ico: '📋', label: 'Crear Pedido' },
-      { href: 'cotizador.html',    ico: '📋', label: 'Cotizador' },
-      { href: 'cotizaciones.html', ico: '📂', label: 'Mis cotizaciones' },
-      { href: 'documentos.html',   ico: '📝', label: 'Documentos & Formas' },
-      { href: 'consulta.html',     ico: '🔎', label: 'Consultar stock' },
-      { href: '../lista_costos.html', ico: '📄', label: 'Lista de precios', ext: true },
-      { href: 'productos.html',    ico: '💱', label: 'Mis precios' },
-      { href: 'catalogo.html',     ico: '📗', label: 'Catálogo' },
-      { href: 'pedidos.html',      ico: '🛒', label: 'Mis pedidos' },
-    ]},
-    { group: 'Clientes', ico: '👥', items: [
-      { href: 'clientes.html', ico: '👥', label: 'Mis clientes' },
-      { href: 'difusion.html', ico: '📢', label: 'Difusión WA' },
-      { href: 'campanas-email.html', ico: '📣', label: 'Campañas Email' },
-    ]},
-    { group: 'Comunicación', ico: '💬', items: [
-      { href: 'whatsapp.html', ico: '💬', label: 'WhatsApp' },
-      { href: 'correo.html',   ico: '📧', label: 'Correo' },
-    ]},
-    { section: 'Mi cuenta' },
-    { href: 'ajustes.html', ico: '⚙', label: 'Mis ajustes' },
-    { section: 'Sitio Público' },
-    { href: '/catalogo', ico: '🌐', label: 'Catálogo Cliente', ext: true },
-    { href: '/catalogo_impreso', ico: '🖨️', label: 'Catálogo con QR (Calle)', ext: true },
-    { action: 'logout', ico: '🔓', label: 'Cerrar Sesión' },
+    { section: 'Principal' },
+    { href: 'index.html', ico: '📊', label: 'Mi Panel', color: '#3b82f6', glow: 'rgba(59, 130, 246, 0.45)' },
+    { 
+      group: 'Vender', 
+      ico: '💰', 
+      color: '#10b981', 
+      glow: 'rgba(16, 185, 129, 0.45)',
+      items: [
+        { href: 'pos.html',          ico: '📋', label: 'Crear Pedido' },
+        { href: 'cotizador.html',    ico: '📋', label: 'Cotizador' },
+        { href: 'cotizaciones.html', ico: '📂', label: 'Mis cotizaciones' },
+        { href: 'documentos.html',   ico: '📝', label: 'Documentos & Formas' },
+        { href: 'consulta.html',     ico: '🔎', label: 'Consultar stock' },
+        { href: '../lista_costos.html', ico: '📄', label: 'Lista de precios', ext: true },
+        { href: 'productos.html',    ico: '💱', label: 'Mis precios' },
+        { href: 'catalogo.html',     ico: '📗', label: 'Catálogo' },
+        { href: 'pedidos.html',      ico: '🛒', label: 'Mis pedidos' },
+      ]
+    },
+    { 
+      group: 'Clientes', 
+      ico: '👥', 
+      color: '#06b6d4', 
+      glow: 'rgba(6, 182, 212, 0.45)',
+      items: [
+        { href: 'clientes.html', ico: '👥', label: 'Mis clientes' },
+        { href: 'difusion.html', ico: '📢', label: 'Difusión WA' },
+        { href: 'campanas-email.html', ico: '📣', label: 'Campañas Email' },
+      ]
+    },
+    { 
+      group: 'Comunicación', 
+      ico: '💬', 
+      color: '#8b5cf6', 
+      glow: 'rgba(139, 92, 246, 0.45)',
+      items: [
+        { href: 'whatsapp.html', ico: '💬', label: 'WhatsApp' },
+        { href: 'correo.html',   ico: '📧', label: 'Correo' },
+      ]
+    },
+    { section: 'Mi Cuenta' },
+    { 
+      group: 'Mi Cuenta', 
+      ico: '⚙️', 
+      color: '#ec4899', 
+      glow: 'rgba(236, 72, 153, 0.45)',
+      items: [
+        { href: 'ajustes.html', ico: '⚙️', label: 'Mis ajustes' },
+        { href: '/catalogo', ico: '🌐', label: 'Catálogo Cliente', ext: true },
+        { href: '/catalogo_impreso', ico: '🖨️', label: 'Catálogo con QR (Calle)', ext: true },
+      ]
+    }
   ];
 
-  // Dirección y nav según el ROL de la sesión, no según la URL. Antes se decidía
-  // por la ruta: un admin que abría /vendedor/catalogo.html veía el menú del
-  // vendedor y todo parecía "cambiársele" la sesión. Ahora el rol manda; la URL
-  // es solo un fallback mientras el perfil todavía no se carga.
   let NAV = isVendedor ? VENDEDOR_NAV : ADMIN_NAV;
   let DIR = isVendedor ? 'vendedor' : 'admin';
 
-  // Resuelve un href del menú a ruta absoluta según el DIR de la sesión, para que
-  // los enlaces funcionen aunque estés viendo el panel de admin o el de vendedor
-  // (siteURL respeta la raíz real, incluso con file:// o una subcarpeta de dominio).
   function absHref(href) {
     if (!href || href === '#' || /^https?:/i.test(href)) return href;
     if (href.startsWith('/')) return href;
@@ -131,9 +182,12 @@
       a.addEventListener('click', (e) => {
         e.preventDefault();
         if (window.adminLogout) window.adminLogout();
+        else if (typeof adminLogout === 'function') adminLogout();
       });
     }
     if (isActive(it.href)) a.className = 'on';
+    if (it.color) a.style.setProperty('--cat-color', it.color);
+    if (it.glow) a.style.setProperty('--cat-glow', it.glow);
     a.innerHTML = `<span class="a-ico">${it.ico || ''}</span> <span class="a-txt">${it.label}</span>`;
     return a;
   }
@@ -148,6 +202,9 @@
   function groupEl(g) {
     const wrap = document.createElement('div');
     wrap.className = 'nav-group';
+    if (g.color) wrap.style.setProperty('--cat-color', g.color);
+    if (g.glow) wrap.style.setProperty('--cat-glow', g.glow);
+
     const hasActive = g.items.some((it) => isActive(it.href));
     if (hasActive) wrap.classList.add('open', 'has-active');
 
@@ -155,6 +212,7 @@
     btn.type = 'button';
     btn.className = 'nav-group-btn';
     btn.setAttribute('aria-expanded', hasActive ? 'true' : 'false');
+    btn.title = g.group;
     btn.innerHTML =
       `<span class="a-ico">${g.ico || ''}</span>` +
       `<span class="a-txt">${g.group}</span>` +
@@ -164,7 +222,13 @@
     sub.className = 'nav-sub';
     g.items.forEach((it) => sub.appendChild(linkEl(it)));
 
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', (e) => {
+      const aside = document.querySelector('.admin-aside') || document.querySelector('aside.aside');
+      if (aside && aside.classList.contains('collapsed')) {
+        // En estado colapsado, hacer clic en el cuadro expande la barra lateral
+        toggleCollapse(false);
+        return;
+      }
       const open = wrap.classList.toggle('open');
       btn.setAttribute('aria-expanded', open ? 'true' : 'false');
     });
@@ -173,6 +237,32 @@
     wrap.appendChild(sub);
     return wrap;
   }
+
+  function toggleCollapse(forceState) {
+    const aside = document.querySelector('.admin-aside') || document.querySelector('aside.aside');
+    if (!aside) return;
+
+    const shouldCollapse = (typeof forceState === 'boolean')
+      ? forceState
+      : !aside.classList.contains('collapsed');
+
+    if (shouldCollapse) {
+      aside.classList.add('collapsed');
+      document.body.classList.add('sidebar-collapsed');
+      localStorage.setItem('jjp_sidebar_collapsed', '1');
+    } else {
+      aside.classList.remove('collapsed');
+      document.body.classList.remove('sidebar-collapsed');
+      localStorage.setItem('jjp_sidebar_collapsed', '0');
+    }
+
+    const tBtn = document.getElementById('jjpAsideToggleBtn');
+    if (tBtn) {
+      tBtn.innerHTML = shouldCollapse ? '▶' : '◀';
+      tBtn.title = shouldCollapse ? 'Expandir barra lateral' : 'Colapsar barra lateral';
+    }
+  }
+  window.__jjpToggleSidebar = toggleCollapse;
 
   function renderNav() {
     const host = document.querySelector('.aside-nav');
@@ -183,56 +273,382 @@
       if (node.group)   return host.appendChild(groupEl(node));
       host.appendChild(linkEl(node));
     });
+
+    // Inyectar botón de colapso y animación al logo en .aside-brand
+    const asideBrand = document.querySelector('.aside-brand');
+    if (asideBrand && !document.getElementById('jjpAsideToggleBtn')) {
+      const logoImg = asideBrand.querySelector('.n-logo-img');
+      if (logoImg) logoImg.classList.add('jjp-logo-animated');
+
+      const leftWrap = document.createElement('div');
+      leftWrap.className = 'aside-brand-left';
+      while (asideBrand.firstChild) {
+        leftWrap.appendChild(asideBrand.firstChild);
+      }
+      asideBrand.appendChild(leftWrap);
+
+      const tBtn = document.createElement('button');
+      tBtn.type = 'button';
+      tBtn.id = 'jjpAsideToggleBtn';
+      tBtn.className = 'jjp-aside-toggle';
+      tBtn.setAttribute('aria-label', 'Colapsar menú');
+      tBtn.title = 'Colapsar / Expandir barra';
+      tBtn.innerHTML = '◀';
+      tBtn.addEventListener('click', () => toggleCollapse());
+      asideBrand.appendChild(tBtn);
+    }
+
+    // Inyectar botón de Cerrar Sesión en .aside-ft
+    const asideFt = document.querySelector('.aside-ft');
+    if (asideFt && !document.getElementById('jjpAsideLogoutBtn')) {
+      const logoutBtn = document.createElement('button');
+      logoutBtn.type = 'button';
+      logoutBtn.id = 'jjpAsideLogoutBtn';
+      logoutBtn.className = 'jjp-aside-logout-btn';
+      logoutBtn.title = 'Cerrar Sesión Segura';
+      logoutBtn.innerHTML = `<span class="jjp-logout-ico">🔓</span><span class="jjp-logout-txt">Cerrar Sesión</span>`;
+      logoutBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (window.adminLogout) window.adminLogout();
+        else if (typeof adminLogout === 'function') adminLogout();
+      });
+      asideFt.appendChild(logoutBtn);
+    }
+
+    // Aplicar estado colapsado inicial si estaba guardado
+    const savedCollapsed = localStorage.getItem('jjp_sidebar_collapsed') === '1';
+    if (savedCollapsed && window.innerWidth > 900) {
+      toggleCollapse(true);
+    }
   }
 
-  /* ---- CSS auto-inyectado (no toca archivos .css compartidos) ---- */
+  /* ---- CSS auto-inyectado con estilo Liquid Glass y Halos ---- */
   function injectCSS() {
     if (document.getElementById('jjp-sidenav-css')) return;
     const css = `
-    .aside-nav .nav-group { display:flex; flex-direction:column }
+    /* ==============================================================
+       LIQUID GLASS SIDENAV & GLOW CATEGORY TILES
+       ============================================================== */
+    .admin-aside, aside.aside {
+      background: rgba(10, 16, 26, 0.85) !important;
+      backdrop-filter: blur(24px) saturate(190%) !important;
+      -webkit-backdrop-filter: blur(24px) saturate(190%) !important;
+      border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+      box-shadow: 4px 0 30px rgba(0, 0, 0, 0.35) !important;
+      transition: width 0.32s cubic-bezier(0.16, 1, 0.3, 1), transform 0.3s ease !important;
+      z-index: 200 !important;
+    }
+
+    .admin-main, main.admin-main {
+      transition: margin-left 0.32s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    }
+    body.sidebar-collapsed .admin-main,
+    body.sidebar-collapsed main.admin-main {
+      margin-left: 72px !important;
+    }
+
+    /* Cabecera y botón toggle */
+    .aside-brand {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+      padding: 16px 16px 14px !important;
+      position: relative !important;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+    }
+    .aside-brand-left {
+      display: flex; align-items: center; gap: 10px; overflow: hidden; white-space: nowrap;
+    }
+    .jjp-aside-toggle {
+      width: 28px; height: 28px; border-radius: 8px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: rgba(255, 255, 255, 0.7);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: all 0.2s ease;
+      flex-shrink: 0; font-size: 11px; font-weight: 700;
+      backdrop-filter: blur(8px);
+    }
+    .jjp-aside-toggle:hover {
+      background: rgba(255, 255, 255, 0.16);
+      color: #fff; border-color: rgba(255, 255, 255, 0.25);
+      transform: scale(1.06);
+    }
+
+    /* Animación institucional del Logo JJ Paper */
+    .jjp-logo-animated {
+      width: 38px; height: 38px; border-radius: 50%;
+      filter: drop-shadow(0 0 6px rgba(16, 185, 129, 0.45));
+      animation: jjpLogoPulse 4s ease-in-out infinite;
+      transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+      flex-shrink: 0;
+    }
+    .jjp-logo-animated:hover {
+      transform: rotate(8deg) scale(1.12);
+    }
+    @keyframes jjpLogoPulse {
+      0%   { filter: drop-shadow(0 0 5px rgba(16, 185, 129, 0.4)); }
+      50%  { filter: drop-shadow(0 0 14px rgba(6, 182, 212, 0.8)); transform: scale(1.04) rotate(2deg); }
+      100% { filter: drop-shadow(0 0 5px rgba(16, 185, 129, 0.4)); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .jjp-logo-animated { animation: none !important; }
+    }
+
+    /* Grupos y acordeones */
+    .aside-nav .nav-group { display:flex; flex-direction:column; position:relative }
     .aside-nav .nav-group-btn {
       display:flex; align-items:center; gap:12px; width:100%;
-      padding:12px 20px; font-size:14px; font-weight:500;
-      color:rgba(255,255,255,.75); background:none; border:0; cursor:pointer;
+      padding:11px 18px; font-size:13.5px; font-weight:500;
+      color:rgba(255,255,255,.78); background:none; border:0; cursor:pointer;
       font-family:inherit; text-align:left; transition:var(--tr,.2s ease);
+      border-radius: 8px; margin: 1px 8px; width: calc(100% - 16px);
     }
-    .aside-nav .nav-group-btn:hover { background:rgba(255,255,255,.1); color:#fff }
-    .aside-nav .nav-group-btn .a-ico { font-size:18px; width:22px; text-align:center; flex-shrink:0 }
+    .aside-nav .nav-group-btn:hover {
+      background:rgba(255,255,255,.08); color:#fff;
+      box-shadow: 0 0 12px var(--cat-glow, transparent);
+    }
+    .aside-nav .nav-group-btn .a-ico {
+      font-size:17px; width:22px; text-align:center; flex-shrink:0;
+      filter: drop-shadow(0 0 4px var(--cat-color, transparent));
+    }
     .aside-nav .nav-group-btn .a-txt { flex:1 }
     .aside-nav .nav-caret {
       font-size:11px; opacity:.6; transition:transform .28s ease; flex-shrink:0;
     }
     .aside-nav .nav-group.open .nav-caret { transform:rotate(180deg) }
-    /* resalta la sección que contiene la página activa */
-    .aside-nav .nav-group.has-active > .nav-group-btn { color:#fff }
-    .aside-nav .nav-group.has-active > .nav-group-btn .a-txt { font-weight:700 }
+    .aside-nav .nav-group.has-active > .nav-group-btn { color:#fff; font-weight:700 }
 
-    /* submenú desplegable animado (grid 0fr→1fr, sin medir alturas) */
+    /* Submenú desplegable fluido */
     .aside-nav .nav-sub {
       display:grid; grid-template-rows:0fr;
-      transition:grid-template-rows .28s ease;
-      background:rgba(0,0,0,.18);
+      transition:grid-template-rows .28s cubic-bezier(0.16, 1, 0.3, 1);
+      background:rgba(0,0,0,.15);
+      border-radius: 8px; margin: 0 8px 4px 8px;
     }
     .aside-nav .nav-group.open .nav-sub { grid-template-rows:1fr }
     .aside-nav .nav-sub > * { min-height:0; overflow:hidden }
     .aside-nav .nav-sub a {
-      padding-left:44px; font-size:13px;
-      color:rgba(255,255,255,.62);
+      padding: 9px 12px 9px 38px; font-size:12.5px;
+      color:rgba(255,255,255,.65);
+      transition: all 0.18s ease;
+      text-decoration:none; display:flex; align-items:center; gap:8px;
     }
-    .aside-nav .nav-sub a .a-ico { font-size:15px }
-    .aside-nav .nav-sub a:hover { color:#fff }
+    .aside-nav .nav-sub a:hover { color:#fff; background:rgba(255,255,255,.08); padding-left:42px }
     .aside-nav .nav-sub a.on {
-      background:rgba(255,255,255,.15); color:#fff;
-      border-right:3px solid var(--gm,#99CC33);
+      background:var(--cat-glow, rgba(16, 185, 129, 0.2)); color:#fff;
+      border-left:3px solid var(--cat-color, #10b981);
+      font-weight:600;
     }
+
+    /* Enlaces individuales */
+    .aside-nav a {
+      display:flex; align-items:center; gap:12px; padding:11px 18px;
+      font-size:13.5px; font-weight:500; color:rgba(255,255,255,.78);
+      transition:var(--tr,.2s ease); cursor:pointer; text-decoration:none;
+      border-radius: 8px; margin: 1px 8px; width: calc(100% - 16px);
+    }
+    .aside-nav a:hover { background:rgba(255,255,255,.08); color:#fff }
+    .aside-nav a.on {
+      background:rgba(255,255,255,.14); color:#fff;
+      border-left:3px solid var(--cat-color, var(--gm,#10b981));
+      font-weight:600;
+    }
+
+    /* ==============================================================
+       ESTADO COLAPSADO: CUADROS GLASS CON LUZ INDIVIDUAL
+       ============================================================== */
+    .admin-aside.collapsed, aside.aside.collapsed {
+      width: 72px !important;
+    }
+    .admin-aside.collapsed .aside-brand span,
+    .admin-aside.collapsed .aside-brand em,
+    .admin-aside.collapsed .jjp-cmd-pill,
+    .admin-aside.collapsed .a-section,
+    .admin-aside.collapsed .aside-ft > div:first-child,
+    .admin-aside.collapsed .nav-group-btn .a-txt,
+    .admin-aside.collapsed .nav-group-btn .nav-caret,
+    .admin-aside.collapsed .aside-nav > a .a-txt {
+      display: none !important;
+    }
+
+    .admin-aside.collapsed .aside-brand {
+      justify-content: center !important;
+      padding: 14px 8px !important;
+    }
+    .admin-aside.collapsed .aside-brand-left {
+      margin-bottom: 8px;
+    }
+    .admin-aside.collapsed .jjp-aside-toggle {
+      position: absolute; bottom: -12px; right: 22px; z-index: 10;
+    }
+
+    .admin-aside.collapsed .nav-group,
+    .admin-aside.collapsed .aside-nav > a {
+      margin: 8px auto !important;
+      width: 48px !important;
+      display: flex !important;
+      justify-content: center !important;
+      position: relative !important;
+    }
+
+    .admin-aside.collapsed .nav-group-btn,
+    .admin-aside.collapsed .aside-nav > a {
+      width: 48px !important;
+      height: 48px !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      border-radius: 12px !important;
+      background: rgba(255, 255, 255, 0.04) !important;
+      backdrop-filter: blur(14px) !important;
+      -webkit-backdrop-filter: blur(14px) !important;
+      border: 1px solid rgba(255, 255, 255, 0.09) !important;
+      box-shadow: 0 0 12px var(--cat-glow, rgba(255, 255, 255, 0.08)) !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      transition: all 0.24s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    }
+
+    .admin-aside.collapsed .nav-group-btn .a-ico,
+    .admin-aside.collapsed .aside-nav > a .a-ico {
+      font-size: 21px !important;
+      margin: 0 !important;
+      width: auto !important;
+      filter: drop-shadow(0 0 6px var(--cat-color, #fff)) !important;
+      transition: transform 0.2s ease !important;
+    }
+
+    .admin-aside.collapsed .nav-group:hover .nav-group-btn,
+    .admin-aside.collapsed .aside-nav > a:hover {
+      transform: scale(1.08) translateY(-1px) !important;
+      background: rgba(255, 255, 255, 0.12) !important;
+      border-color: var(--cat-color, rgba(255, 255, 255, 0.35)) !important;
+      box-shadow: 0 0 22px var(--cat-glow, rgba(255, 255, 255, 0.35)), inset 0 0 10px rgba(255, 255, 255, 0.1) !important;
+    }
+
+    .admin-aside.collapsed .nav-group:hover .nav-group-btn .a-ico,
+    .admin-aside.collapsed .aside-nav > a:hover .a-ico {
+      transform: scale(1.15) !important;
+    }
+
+    .admin-aside.collapsed .nav-group.has-active .nav-group-btn,
+    .admin-aside.collapsed .aside-nav > a.on {
+      border-color: var(--cat-color, #10b981) !important;
+      background: var(--cat-glow, rgba(16, 185, 129, 0.25)) !important;
+      box-shadow: 0 0 18px var(--cat-glow, rgba(16, 185, 129, 0.5)) !important;
+    }
+
+    /* Submenú Flotante Flyout Glass en Colapsado */
+    .admin-aside.collapsed .nav-group .nav-sub {
+      display: none !important;
+      position: absolute !important;
+      left: 56px !important;
+      top: 0 !important;
+      width: 220px !important;
+      background: rgba(11, 18, 30, 0.95) !important;
+      backdrop-filter: blur(24px) saturate(190%) !important;
+      -webkit-backdrop-filter: blur(24px) saturate(190%) !important;
+      border: 1.5px solid var(--cat-color, rgba(255, 255, 255, 0.2)) !important;
+      border-radius: 14px !important;
+      box-shadow: 0 14px 40px rgba(0, 0, 0, 0.65), 0 0 20px var(--cat-glow, transparent) !important;
+      padding: 8px !important;
+      z-index: 99999 !important;
+    }
+
+    .admin-aside.collapsed .nav-group:hover .nav-sub {
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 3px !important;
+      animation: jjpFlyoutPop 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    }
+
+    .admin-aside.collapsed .nav-group .nav-sub a {
+      padding: 9px 12px !important;
+      border-radius: 8px !important;
+      font-size: 13px !important;
+      color: rgba(255, 255, 255, 0.8) !important;
+      display: flex !important;
+      align-items: center !important;
+      gap: 10px !important;
+      text-decoration: none !important;
+      transition: all 0.16s ease !important;
+      border-left: none !important;
+      width: 100% !important;
+      margin: 0 !important;
+    }
+
+    .admin-aside.collapsed .nav-group .nav-sub a:hover {
+      background: rgba(255, 255, 255, 0.12) !important;
+      color: #fff !important;
+      transform: translateX(3px) !important;
+    }
+
+    .admin-aside.collapsed .nav-group .nav-sub a.on {
+      background: var(--cat-glow, rgba(16, 185, 129, 0.25)) !important;
+      border-left: 3px solid var(--cat-color, #10b981) !important;
+      color: #fff !important;
+      font-weight: 700 !important;
+    }
+
+    @keyframes jjpFlyoutPop {
+      0%   { opacity: 0; transform: translateX(-8px) scale(0.96); }
+      100% { opacity: 1; transform: translateX(0) scale(1); }
+    }
+
+    /* Botón Preciso de Cerrar Sesión */
+    .jjp-aside-logout-btn {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      gap: 8px !important;
+      width: 100% !important;
+      margin-top: 10px !important;
+      padding: 10px 14px !important;
+      background: rgba(239, 68, 68, 0.12) !important;
+      border: 1px solid rgba(239, 68, 68, 0.28) !important;
+      border-radius: 10px !important;
+      color: #fca5a5 !important;
+      font-size: 13px !important;
+      font-weight: 600 !important;
+      cursor: pointer !important;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+      font-family: inherit !important;
+      backdrop-filter: blur(10px) !important;
+    }
+    .jjp-aside-logout-btn:hover {
+      background: rgba(239, 68, 68, 0.25) !important;
+      border-color: #ef4444 !important;
+      color: #ffffff !important;
+      transform: translateY(-1px) !important;
+      box-shadow: 0 4px 14px rgba(239, 68, 68, 0.4) !important;
+    }
+    .admin-aside.collapsed .jjp-aside-logout-btn {
+      width: 48px !important;
+      height: 48px !important;
+      padding: 0 !important;
+      margin: 10px auto !important;
+      border-radius: 12px !important;
+    }
+    .admin-aside.collapsed .jjp-aside-logout-btn .jjp-logout-txt {
+      display: none !important;
+    }
+
+    @media (max-width: 900px) {
+      .admin-aside.collapsed { width: 240px !important; }
+      body.sidebar-collapsed .admin-main { margin-left: 0 !important; }
+      .jjp-aside-toggle { display: none !important; }
+    }
+
+    /* Command Palette */
     .jjp-cmd-pill {
       display:flex; align-items:center; justify-content:space-between;
-      margin:8px 16px 12px; padding:7px 12px; background:rgba(255,255,255,0.08);
-      border:1px solid rgba(255,255,255,0.12); border-radius:8px;
-      color:rgba(255,255,255,0.85); font-size:12px; cursor:pointer;
+      margin:8px 14px 12px; padding:7px 12px; background:rgba(255,255,255,0.06);
+      border:1px solid rgba(255,255,255,0.1); border-radius:8px;
+      color:rgba(255,255,255,0.8); font-size:12px; cursor:pointer;
       transition:all 0.2s ease;
     }
-    .jjp-cmd-pill:hover { background:rgba(255,255,255,0.16); color:#fff; border-color:rgba(255,255,255,0.25); }
+    .jjp-cmd-pill:hover { background:rgba(255,255,255,0.14); color:#fff; border-color:rgba(255,255,255,0.22); }
     .jjp-cmd-pill kbd {
       background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.2);
       border-radius:4px; padding:1px 5px; font-size:10px; font-family:monospace;
@@ -288,45 +704,13 @@
     .jjp-palette-empty {
       padding:30px; text-align:center; color:#94a3b8; font-size:14px;
     }
-    .topbar-dialer-btn {
-      display:inline-flex; align-items:center; gap:8px;
-      background:linear-gradient(135deg, #059669, #047857);
-      color:#ffffff !important; border:1px solid #10b981;
-      padding:6px 14px; border-radius:9999px;
-      font-size:12.5px; font-weight:700; cursor:pointer;
-      box-shadow:0 2px 8px rgba(5, 150, 105, 0.35);
-      transition:all .2s ease; user-select:none; font-family:inherit;
-      margin-right:10px; text-decoration:none;
-    }
-    .topbar-dialer-btn:hover {
-      background:linear-gradient(135deg, #10b981, #059669);
-      transform:translateY(-1px);
-      box-shadow:0 4px 14px rgba(5, 150, 105, 0.55);
-      color:#ffffff !important;
-    }
-    .topbar-dialer-pulse {
-      width:8px; height:8px; border-radius:50%;
-      background:#34d399; display:inline-block;
-      box-shadow:0 0 0 0 rgba(52, 211, 153, 0.7);
-      animation:jjpPulseGreen 1.8s infinite;
-    }
-    @keyframes jjpPulseGreen {
-      0% { transform:scale(0.95); box-shadow:0 0 0 0 rgba(52, 211, 153, 0.7); }
-      70% { transform:scale(1); box-shadow:0 0 0 6px rgba(52, 211, 153, 0); }
-      100% { transform:scale(0.95); box-shadow:0 0 0 0 rgba(52, 211, 153, 0); }
-    }
-    @media (prefers-reduced-motion: reduce) {
-      .aside-nav .nav-sub, .aside-nav .nav-caret { transition:none }
-    }`;
+    `;
     const style = document.createElement('style');
     style.id = 'jjp-sidenav-css';
     style.textContent = css;
     document.head.appendChild(style);
   }
 
-  // Corrige el menú cuando el rol real difiere del deducido por la URL
-  // (ej: admin visitando /vendedor/catalogo.html debe ver el menú de admin).
-  // Requiere admin/auth.js (loadProfile) — si no está, se queda con la URL.
   async function applyRole() {
     if (typeof loadProfile !== 'function') return;
     let role;
@@ -335,14 +719,6 @@
     NAV = role === 'admin' ? ADMIN_NAV : VENDEDOR_NAV;
     DIR = role === 'admin' ? 'admin' : 'vendedor';
     renderNav();
-  }
-
-  function loadCopilot() {
-    if (document.getElementById('jjp-copilot-script')) return;
-    const s = document.createElement('script');
-    s.id = 'jjp-copilot-script';
-    s.src = '../assets/js/copilot-jj.js?v=20260910_cloud_images_v1';
-    document.head.appendChild(s);
   }
 
   function loadKeyboardNav() {
@@ -357,16 +733,15 @@
     if (window.__jjpCmdPaletteInit) return;
     window.__jjpCmdPaletteInit = true;
 
-    // Inyectar botón pill en el header del sidebar
-    const aside = document.querySelector('aside.aside');
-    const asideLogo = aside?.querySelector('.aside-logo');
-    if (asideLogo && !document.getElementById('jjpCmdPill')) {
+    const aside = document.querySelector('.admin-aside') || document.querySelector('aside.aside');
+    const asideBrand = aside?.querySelector('.aside-brand');
+    if (asideBrand && !document.getElementById('jjpCmdPill')) {
       const pill = document.createElement('div');
       pill.id = 'jjpCmdPill';
       pill.className = 'jjp-cmd-pill';
       pill.innerHTML = `<span>🧭 Ir a módulo...</span><kbd>Ctrl+K</kbd>`;
       pill.onclick = openPalette;
-      asideLogo.parentNode.insertBefore(pill, asideLogo.nextSibling);
+      asideBrand.parentNode.insertBefore(pill, asideBrand.nextSibling);
     }
 
     let modal = document.getElementById('jjpCmdPaletteModal');
@@ -398,7 +773,7 @@
 
       const inp = modal.querySelector('#jjpPaletteInput');
       inp.addEventListener('input', renderPaletteItems);
-      inp.addEventListener('keydown', onPaletteKey);
+      window.addEventListener('keydown', onPaletteKey);
     }
 
     let flatItems = [];
@@ -409,12 +784,11 @@
       NAV.forEach(n => {
         if (n.group && n.items) {
           n.items.forEach(it => {
-            if (it.action === 'logout') return;
             flatItems.push({
               title: it.label,
               icon: it.ico || '📄',
               group: n.group,
-              href: it.href ? absHref(it.href) : '#',
+              href: absHref(it.href),
               ext: !!it.ext,
               action: it.action
             });
@@ -533,7 +907,6 @@
     }
 
     window.addEventListener('keydown', e => {
-      // Ctrl+K o Cmd+K o Alt+K abre la paleta de navegación desde cualquier pantalla
       if ((e.ctrlKey || e.metaKey || e.altKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         if (modal.style.display === 'flex') closePalette();
@@ -543,7 +916,6 @@
   }
 
   function initModalScrollBridge() {
-    // Redirigir el scroll del ratón hacia el cuerpo del modal si el cursor está sobre la cabecera, pie o el overlay
     document.addEventListener('wheel', (e) => {
       const overlay = e.target.closest('.modal-overlay.op, .modal-overlay.open');
       if (!overlay) return;

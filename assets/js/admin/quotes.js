@@ -170,6 +170,17 @@ async function updateQuoteStatus(id, status) {
       return;
     }
   }
+  // Si es orden de inserción en MixNet, encolar tarea en jjp_mixnet_tasks
+  if (status === 'pendiente_mixnet' || status === 'confirmado_mixnet') {
+    try {
+      const qRow = adminQuotes.find(x => x.id === id);
+      await sb.from('jjp_mixnet_tasks').insert({
+        action: 'inject_quote',
+        payload: { quote: qRow, quote_id: id },
+        status: 'pending'
+      });
+    } catch (_) {}
+  }
   const { error } = await sb.from('jjp_quotes').update({ status }).eq('id', id);
   if (error) { showToast('Error al actualizar estado'); renderQuotesTable(); return; }
   const q = adminQuotes.find(x => x.id === id);

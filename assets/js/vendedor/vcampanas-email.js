@@ -1383,7 +1383,7 @@ async function launchEmailCampaignFromEditor(config) {
     </td></tr>
   </table>
 </body></html>`;
-      })()`;
+      })();
 
   let payload = {
     owner_id: ownerId,

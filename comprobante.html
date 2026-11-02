@@ -814,6 +814,7 @@
     <option value="comprobante">📃 Comprobante Interno</option>
   </select>
   <button class="btn btn-g" id="fmtBtn" onclick="toggleFormat()">📃 Ver como ticket</button>
+  <button class="btn btn-p" onclick="descargarPdfComprobante()" style="background:#0369a1;border-color:#0284c7;font-weight:700">📥 Descargar PDF</button>
   <button class="btn btn-p" onclick="window.print()">🖨️ Imprimir Documento</button>
   <button class="btn btn-g" onclick="window.close()">Cerrar</button>
 </div>
@@ -822,6 +823,7 @@
 
 <script src="assets/vendor/supabase-2.58.0.js"></script>
 <script src="assets/js/config.js?v=20261022_vps_full"></script>
+<script src="assets/js/doc-engine.js?v=20261102_fix_v2"></script>
 <script>
 // Helpers de formateo con fallbacks inmediatos
 if (typeof window.escapeHTML !== 'function') {
@@ -1089,6 +1091,21 @@ async function resolveCustomerFiscal(doc) {
   }
 })();
 
+async function descargarPdfComprobante() {
+  if (!ORDER) return;
+  try {
+    const isQuote = DOC_TYPE === 'presupuesto';
+    const tipo = isQuote ? 'presupuesto' : (DOC_TYPE === 'factura' ? 'factura' : 'recibo');
+    if (typeof docPdfDocumento === 'function') {
+      const archivo = await docPdfDocumento(ORDER, tipo);
+      docDescargar(archivo.blob, archivo.filename);
+      return;
+    }
+  } catch (err) {
+    console.warn('Fallback a window.print() para PDF:', err);
+  }
+  window.print();
+}
 function setDocType(t) { DOC_TYPE = t; if (ORDER) render(ORDER); }
 
 function normalizeQuote(q) {
@@ -1241,6 +1258,10 @@ function render(o) {
   else if (isReceipt) docTitleHeader = 'ORDEN DE ENTREGA';
 
   const docNumberMain = o.invoice_number || o.order_number || 'S/N';
+  // Asignar título de archivo 100% limpio y válido para Windows/Chrome (evita .dll)
+  const cleanTitleDoc = (docTitleHeader || 'COMPROBANTE').replace(/[^\w]/g, '_');
+  const cleanDocNum = String(docNumberMain || 'SN').replace(/[^\w.\-]/g, '_');
+  document.title = cleanTitleDoc + '_' + cleanDocNum + '.pdf';
   const controlNumber = o.control_number || inv.ncontrol || null;
   const fechaEmision = o.invoice_date || o.created_at;
   const condicionPago = (isInvoice || o.status === 'pagado') ? 'CONTADO' : 'POR CONFIRMAR';

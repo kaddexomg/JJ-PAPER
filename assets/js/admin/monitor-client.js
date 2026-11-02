@@ -153,6 +153,38 @@ window.sendAgenticPrompt = async function() {
     await window.triggerReindexFromMonitor();
     return;
   }
+  if (lower.includes('git') || lower.includes('pull') || lower.includes('actualizar') || lower.includes('update')) {
+    c.textContent = `[${new Date().toLocaleTimeString()}] 🚀 ENTORNO AGÉNTICO: Despachando tarea 'git_pull' a Supervisor-Pc...\n`;
+    try {
+      const { data: task, error } = await sb.from('jjp_mixnet_tasks').insert({
+        action: 'git_pull',
+        payload: { triggered_by: 'monitor_console', timestamp: new Date().toISOString() },
+        status: 'pending'
+      }).select('id').single();
+      if (error) throw error;
+      c.textContent += `[${new Date().toLocaleTimeString()}] ⏳ Tarea #${task.id} encolada. Esperando ejecución en tienda física...\n`;
+      let completed = false;
+      for (let i = 0; i < 15; i++) {
+        await new Promise(r => setTimeout(r, 1000));
+        const { data: tRow } = await sb.from('jjp_mixnet_tasks').select('*').eq('id', task.id).single();
+        if (tRow && (tRow.status === 'completed' || tRow.status === 'failed')) {
+          const out = tRow.result?.output || tRow.error || 'Proceso finalizado.';
+          c.textContent += `[${new Date().toLocaleTimeString()}] ${tRow.status === 'completed' ? '✅' : '❌'} RESULTADO DE AUTO-ACTUALIZACIÓN:\n${out}\n`;
+          if (typeof showOptToast === 'function') showOptToast(tRow.status === 'completed' ? 'Agente LAN actualizado ✔' : 'Fallo en git pull', tRow.status === 'completed' ? 'success' : 'err');
+          completed = true;
+          break;
+        }
+      }
+      if (!completed) c.textContent += `[${new Date().toLocaleTimeString()}] ℹ️ Tarea #${task.id} en ejecución por el agente LAN.\n`;
+    } catch (err) {
+      c.textContent += `[${new Date().toLocaleTimeString()}] ❌ Error despachando tarea: ${err.message}\n`;
+    }
+    return;
+  }
+  if (lower.includes('sync') || lower.includes('sincroniz')) {
+    await window.triggerMixnetSyncFromMonitor();
+    return;
+  }
 
   if (typeof GeminiClient !== 'undefined' && GeminiClient.callGemini) {
     try {

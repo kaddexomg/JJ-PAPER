@@ -909,11 +909,25 @@ async function docArchivoDelDia(clase, bucket = 'jjp-wa-media') {
   return listo;
 }
 
-/* Descarga directa (lo que ya hacía el botón del sitio público) */
+/* Descarga directa oficial blindada con tipo MIME application/pdf y nombre seguro */
 function docDescargar(blob, filename) {
-  const url = URL.createObjectURL(blob);
+  let safeName = String(filename || ("Presupuesto-" + docToday() + ".pdf")).trim();
+  if (!safeName.toLowerCase().endsWith('.pdf')) safeName += '.pdf';
+  safeName = safeName.replace(/[^\w.\-]/g, '_');
+
+  const pdfBlob = (blob instanceof Blob && blob.type === 'application/pdf')
+    ? blob
+    : new Blob([blob], { type: 'application/pdf' });
+
+  const url = URL.createObjectURL(pdfBlob);
   const a = document.createElement('a');
-  a.href = url; a.download = filename;
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  a.style.display = 'none';
+  a.href = url;
+  a.download = safeName;
+  a.setAttribute('download', safeName);
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => {
+    try { a.remove(); URL.revokeObjectURL(url); } catch (_) {}
+  }, 1500);
 }

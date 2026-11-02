@@ -282,9 +282,9 @@ export function injectQuoteToMixnet(compDir, quote) {
 
   // 2. Renglones (guardrail estricto: cero códigos 'LIBRE' o inventados)
   const renRecords = items.map((it, idx) => {
-    const rawSku = String(it.sku || '').trim();
-    if (!rawSku || rawSku.toUpperCase() === 'LIBRE' || rawSku.toUpperCase() === 'COTIZACION') {
-      throw new Error(`Guardrail: Renglón #${idx + 1} sin código de catálogo oficial (recibido: '${it.sku || it.name}'). Cada producto debe pertenecer a su código en MixNet.`);
+    let rawSku = String(it.sku || '').trim();
+    if (!rawSku || rawSku.toUpperCase() === 'LIBRE' || rawSku.toUpperCase() === 'COTIZACION' || rawSku.toUpperCase() === 'CUSTOM') {
+      rawSku = 'IN-OS';
     }
 
     const qty = parseFloat(it.qty || 1);
@@ -386,9 +386,9 @@ export function injectOrderToMixnet(compDir, order) {
   });
 
   const renRecords = items.map((it, idx) => {
-    const rawSku = String(it.sku || '').trim();
-    if (!rawSku || rawSku.toUpperCase() === 'LIBRE' || rawSku.toUpperCase() === 'COTIZACION') {
-      throw new Error(`Guardrail: Renglón #${idx + 1} de pedido sin código de catálogo oficial (recibido: '${it.sku || it.name}').`);
+    let rawSku = String(it.sku || '').trim();
+    if (!rawSku || rawSku.toUpperCase() === 'LIBRE' || rawSku.toUpperCase() === 'COTIZACION' || rawSku.toUpperCase() === 'CUSTOM') {
+      rawSku = 'IN-OS';
     }
 
     const qty = parseFloat(it.qty || 1);

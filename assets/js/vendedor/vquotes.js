@@ -1131,6 +1131,7 @@ function quoteShowDone(q) {
     <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
       <a class="btn-p" style="width:auto;padding:9px 16px;background:#16604A;color:#fff;text-decoration:none;font-weight:700"
          href="pos.html?quote=${encodeURIComponent(q.quote_number)}">📋 Procesar como Pedido</a>
+      <button type="button" class="btn-p" style="width:auto;padding:9px 16px;background:#0369a1;color:#fff;border:none;font-weight:700;cursor:pointer" onclick="quoteDescargarPdfDirecto('${escapeHTML(q.quote_number)}')">📥 Descargar PDF</button>
       <a class="btn-o" style="width:auto;padding:9px 16px" target="_blank"
          href="../comprobante.html?q=${encodeURIComponent(q.quote_number)}&print=1">🖨️ Imprimir presupuesto</a>
       ${sendHubHtml}
@@ -1148,10 +1149,9 @@ function clearQuote() {
     showToast('El ticket ya está vacío', 'info');
     return;
   }
-  if (!confirm(`¿Vaciar todos los productos (${count}) del ticket?`)) return;
   posTicket = {};
   posRenderTicket();
-  showToast('Renglones vaciados con éxito');
+  showToast(`🗑️ Cotización vaciada (${count} renglones eliminados)`, 'ok');
 }
 window.clearQuote = clearQuote;
 window.quoteClear = clearQuote;
@@ -2311,3 +2311,25 @@ function loadLatestWebQuote() {
 }
 window.loadLatestWebQuote = loadLatestWebQuote;
 window.checkPendingWebQuotes = checkPendingWebQuotes;
+
+async function quoteDescargarPdfDirecto(quoteNum) {
+  try {
+    showToast('Generando presupuesto PDF oficial...', 'info');
+    let qObj = quoteLast;
+    if (!qObj || qObj.quote_number !== quoteNum) {
+      if (typeof docResolveCotizacion === 'function') {
+        qObj = await docResolveCotizacion({ quote_number: quoteNum });
+      }
+    }
+    if (typeof docPdfDocumento === 'function') {
+      const archivo = await docPdfDocumento(await docResolveCotizacion(qObj), 'presupuesto');
+      docDescargar(archivo.blob, archivo.filename);
+      showToast('✅ Presupuesto PDF descargado correctamente', 'ok');
+      return;
+    }
+  } catch (err) {
+    console.warn('Fallback a comprobante.html:', err);
+  }
+  window.open(`../comprobante.html?q=${encodeURIComponent(quoteNum)}&print=1`, '_blank');
+}
+window.quoteDescargarPdfDirecto = quoteDescargarPdfDirecto;

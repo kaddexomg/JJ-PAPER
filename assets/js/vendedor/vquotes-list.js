@@ -266,6 +266,13 @@ async function confirmVQuoteToMixnet(id) {
   if (!confirm(`¿Insertar ${label} en MixNet ERP?\n\nSe enviará al sistema administrativo de la tienda.`)) return;
   await updateVQuoteStatus(id, 'pendiente_mixnet');
   try {
+    await sb.from('jjp_mixnet_tasks').insert({
+      action: 'inject_quote',
+      payload: { quote: q, quote_id: id },
+      status: 'pending'
+    });
+  } catch (_) {}
+  try {
     fetch('http://192.168.0.185:8790/api/inject-quote', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

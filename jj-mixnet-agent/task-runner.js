@@ -17,7 +17,7 @@ import { reindexNtx } from './ntx-builder.js';
 import { injectQuoteToMixnet, injectOrderToMixnet, readDbfStruct } from './dbf-driver.js';
 import { reconcileClients, getClientsDiscrepancies, createBackup, rollbackBackup } from './client-reconciler.js';
 import { getMixnetUsers, updateMixnetUserPermissions } from './mixnet-usuar.js';
-import { SELLER_CODVEN_TO_PROFILE, log } from './config.js';
+import { SELLER_CODVEN_TO_PROFILE, PROFILE_ID_TO_CODVEN, log } from './config.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -78,6 +78,9 @@ export async function processAgentTasks(compDir) {
             if (Array.isArray(rows) && rows.length > 0) quote = rows[0];
           }
           if (!quote) throw new Error('Falta payload.quote o payload.quote_id para inyectar cotización.');
+          if (!quote.codven && quote.seller_id) {
+            quote.codven = PROFILE_ID_TO_CODVEN[quote.seller_id] || '';
+          }
           const res = injectQuoteToMixnet(compDir, quote);
           if (res && res.ok && (payload.quote_id || quote.id)) {
             const qId = payload.quote_id || quote.id;
@@ -98,6 +101,9 @@ export async function processAgentTasks(compDir) {
             if (Array.isArray(rows) && rows.length > 0) order = rows[0];
           }
           if (!order) throw new Error('Falta payload.order o payload.order_id para inyectar pedido.');
+          if (!order.codven && order.seller_id) {
+            order.codven = PROFILE_ID_TO_CODVEN[order.seller_id] || '';
+          }
           const res = injectOrderToMixnet(compDir, order);
           if (res && res.ok && (payload.order_id || order.id)) {
             const oId = payload.order_id || order.id;

@@ -16,7 +16,7 @@ import { reportAgentHeartbeat } from './supabase-client.js';
 import { processAgentTasks } from './task-runner.js';
 import { syncCatalogFromMixnet } from './sync-catalog.js';
 import { syncSuppliersFromMixnet } from './sync-suppliers.js';
-import { importMixnetDocuments, exportPendingDocumentsToMixnet } from './sync-documents.js';
+import { importMixnetDocuments } from './sync-documents.js';
 import { reconcileClients, getClientsDiscrepancies, createBackup, rollbackBackup } from './client-reconciler.js';
 import { getMixnetUsers, updateMixnetUserPermissions } from './mixnet-usuar.js';
 
@@ -56,11 +56,8 @@ async function runScheduledSync() {
     syncStats.quotesImported += impRes.importedQuotes;
     syncStats.ordersImported += impRes.importedOrders;
 
-    // Exportar cotizaciones y pedidos pendientes marcados con "📥 Insertar" hacia MixNet
-    const expRes = await exportPendingDocumentsToMixnet(activeCompDir);
-    if (expRes && (expRes.exportedQuotes > 0 || expRes.exportedOrders > 0)) {
-      log(`[SYNC] Exportación hacia MixNet exitosa: ${expRes.exportedQuotes} cotizaciones, ${expRes.exportedOrders} pedidos.`);
-    }
+    // NOTA: La inyección de cotizaciones y pedidos se orquesta estrictamente
+    // mediante la cola soberana jjp_mixnet_tasks bajo demanda humana ("📥 Insertar")
 
     refreshCorrelatives();
     lastSyncTime = new Date().toISOString();

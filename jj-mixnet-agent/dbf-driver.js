@@ -161,9 +161,74 @@ let clientLookupCache = {
   byName: new Map()
 };
 
+let inventoryLookupCache = {
+  loadedAt: 0,
+  bySku: new Map()
+};
+
+/**
+ * Resuelve metadatos de empaque (UNIDAD, CAN_BUL, IVA) desde MXCTAINV.DBF.
+ * Formato nativo de MixNet para evitar romper el cálculo de und/bulto.
+ */
+export function resolveMixnetItemMeta(compDir, sku) {
+  const cleanSku = String(sku || '').trim().toUpperCase();
+  if (!cleanSku || cleanSku === 'IN-OS' || cleanSku === 'LIBRE' || cleanSku === 'COTIZACION' || cleanSku === 'CUSTOM') {
+    return { item: 'IN-OS', unidad: '1', bulto: '0', iva: 'E' };
+  }
+
+  const now = Date.now();
+  if (!inventoryLookupCache.loadedAt || (now - inventoryLookupCache.loadedAt > 300000)) {
+    try {
+      const invPath = path.join(compDir, 'MXCTAINV.DBF');
+      if (fs.existsSync(invPath)) {
+        const sInv = readDbfStruct(invPath);
+        const rows = readDbfRows(sInv, ['codart', 'unidad', 'can_bul', 'iva'], sInv.numRecords, false);
+        const bySku = new Map();
+        for (const r of rows) {
+          const cod = String(r.codart || '').trim().toUpperCase();
+          if (!cod) continue;
+          bySku.set(cod, {
+            unidad: String(r.unidad || '1').trim() || '1',
+            bulto: parseFloat(String(r.can_bul || '0').replace(/,/g, '.')) > 0 ? '1' : '0',
+            iva: String(r.iva || 'A').trim().toUpperCase() || 'A'
+          });
+        }
+        inventoryLookupCache = { loadedAt: now, bySku };
+      }
+    } catch (err) {
+      log(`Aviso cargando catálogo MXCTAINV: ${err.message}`, 'WARN');
+    }
+  }
+
+  if (inventoryLookupCache.bySku.has(cleanSku)) {
+    const meta = inventoryLookupCache.bySku.get(cleanSku);
+    return { item: cleanSku, ...meta };
+  }
+
+  return { item: cleanSku, unidad: '1', bulto: '1', iva: 'A' };
+}
+
+/**
+ * Lee los correlativos existentes de una tabla DBF para blindar contra duplicados
+ */
+function readExistingDocNumbers(dbfPath, fieldName) {
+  const set = new Set();
+  try {
+    if (!fs.existsSync(dbfPath)) return set;
+    const s = readDbfStruct(dbfPath);
+    if (!s || s.numRecords === 0) return set;
+    const rows = readDbfRows(s, [fieldName], s.numRecords, false);
+    for (const r of rows) {
+      const n = String(r[fieldName] || '').trim();
+      if (n) set.add(n);
+    }
+  } catch (_) {}
+  return set;
+}
+
 /**
  * Resuelve el código oficial de cliente (CODCLI) en MXCTACLI.DBF.
- * Si el cliente no existe en el maestro, retorna '00' (código estándar de GemixNet para ocasional).
+ * Si el cliente no existe en el maestro, retorna '000-001' (Cuenta Recuperada).
  */
 export function resolveMixnetClientCode(compDir, rif, clientName) {
   const now = Date.now();
@@ -195,7 +260,7 @@ export function resolveMixnetClientCode(compDir, rif, clientName) {
     }
   }
 
-  // 1. Buscar por CIF / RIF normalizado
+  // 1. Buscar por CIF / RIF normalizado (coincidencia exacta)
   if (rif) {
     const norm = String(rif).replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
     if (clientLookupCache.byCif.has(norm)) {
@@ -203,16 +268,11 @@ export function resolveMixnetClientCode(compDir, rif, clientName) {
     }
   }
 
-  // 2. Buscar por Nombre normalizado
+  // 2. Buscar por Nombre normalizado EXACTO (sin substrings arbitrarios)
   if (clientName) {
     const normNom = String(clientName).trim().toLowerCase().replace(/[^a-z0-9]/g, '');
     if (clientLookupCache.byName.has(normNom)) {
       return clientLookupCache.byName.get(normNom);
-    }
-    for (const [n, cod] of clientLookupCache.byName.entries()) {
-      if (normNom.length >= 6 && (normNom.includes(n) || n.includes(normNom))) {
-        return cod;
-      }
     }
   }
 
@@ -249,10 +309,17 @@ export function injectQuoteToMixnet(compDir, quote) {
   // Resolver código canónico de cliente en MXCTACLI
   const clientCode = resolveMixnetClientCode(compDir, quote.rif, quote.client_name);
 
-  // Obtener correlativo oficial
-  const numcot = quote.quote_number && /^\d{8}$/.test(quote.quote_number)
-    ? quote.quote_number
-    : getAndAdvanceCorrelative(compDir, 'COT');
+  // Obtener correlativo oficial NO COLISIONANTE
+  const existingQuotes = readExistingDocNumbers(encPath, 'numcot');
+  let numcot = null;
+  if (quote.quote_number && /^\d{8}$/.test(quote.quote_number) && !existingQuotes.has(quote.quote_number)) {
+    numcot = quote.quote_number;
+  } else {
+    numcot = getAndAdvanceCorrelative(compDir, 'COT');
+    while (existingQuotes.has(numcot)) {
+      numcot = getAndAdvanceCorrelative(compDir, 'COT');
+    }
+  }
 
   const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
   const sellerCodven = quote.codven || '';
@@ -262,13 +329,21 @@ export function injectQuoteToMixnet(compDir, quote) {
   const clientName = (clientCode === '000-001' || clientCode === '00') ? String(quote.client_name || 'CUENTA RECUPERADA').slice(0, 60)
     : String(quote.client_name || '').slice(0, 60);
 
+  // Cero huellas, cero firmas, cero notas técnicas (AGENTS.md Regla 5)
+  let cleanComen1 = '';
+  const rawNotes = String(quote.notes || '').trim();
+  const isSystemTrace = /(solicitud\s+web|cat[aá]logo|asesor|mixnet|cotizaci[oó]n|online|tienda|e2e|test|prueba|\[)/i.test(rawNotes);
+  if (rawNotes && !isSystemTrace) {
+    cleanComen1 = rawNotes.slice(0, 35);
+  }
+
   const encValues = {
     numcot,
     emision: today,
     cliente: clientCode,
     codsuc: '',
     codven: sellerCodven,
-    comen1: String(quote.notes || '').replace(/\[MixNet\]/gi, '').replace(/COT-\d+/gi, '').trim().slice(0, 35),
+    comen1: cleanComen1,
     comen2: '',
     tot_cot: total.toFixed(2),
     estatus: 'PE',
@@ -280,29 +355,35 @@ export function injectQuoteToMixnet(compDir, quote) {
 
   const encRecord = buildRecordBuffer(sEnc, encValues);
 
-  // 2. Renglones (guardrail estricto: cero códigos 'LIBRE' o inventados)
-  const renRecords = items.map((it, idx) => {
+  // 2. Renglones (respetando estructura nativa und/bulto y tax IVA de MXCTAINV)
+  const renRecords = items.map((it) => {
     let rawSku = String(it.sku || '').trim();
     if (!rawSku || rawSku.toUpperCase() === 'LIBRE' || rawSku.toUpperCase() === 'COTIZACION' || rawSku.toUpperCase() === 'CUSTOM') {
       rawSku = 'IN-OS';
     }
 
+    const itemMeta = resolveMixnetItemMeta(compDir, rawSku);
     const qty = parseFloat(it.qty || 1);
     const price = parseFloat(it.price_usd || 0);
     const totRen = parseFloat(it.subtotal_usd || (qty * price));
     return buildRecordBuffer(sRen, {
-      item: rawSku.slice(0, 15),
-      unidad: String(it.unit || 'UND').slice(0, 3).toUpperCase(),
+      item: itemMeta.item.slice(0, 15),
+      unidad: itemMeta.unidad.slice(0, 4),
+      bulto: itemMeta.bulto.slice(0, 4),
       cantidad: qty.toFixed(3),
       descrip: String(it.name || '').slice(0, 50),
       numcot,
       emision: today,
       estatus: 'PE',
+      despacho: '0.000',
+      desbulto: '0.000',
       precio: price.toFixed(2),
+      desc: '0.00',
       tot_ren: totRen.toFixed(2),
-      iva: 'E', // Exento
+      iva: itemMeta.iva.slice(0, 1),
       cliente: clientCode,
-      codven: sellerCodven
+      codven: sellerCodven,
+      oferta: 'F'
     });
   });
 
@@ -358,9 +439,17 @@ export function injectOrderToMixnet(compDir, order) {
   // Resolver código canónico de cliente en MXCTACLI
   const clientCode = resolveMixnetClientCode(compDir, order.rif, order.client_name);
 
-  const numped = order.order_number && /^\d{8}$/.test(order.order_number)
-    ? order.order_number
-    : getAndAdvanceCorrelative(compDir, 'PED');
+  // Obtener correlativo oficial NO COLISIONANTE
+  const existingOrders = readExistingDocNumbers(encPath, 'numped');
+  let numped = null;
+  if (order.order_number && /^\d{8}$/.test(order.order_number) && !existingOrders.has(order.order_number)) {
+    numped = order.order_number;
+  } else {
+    numped = getAndAdvanceCorrelative(compDir, 'PED');
+    while (existingOrders.has(numped)) {
+      numped = getAndAdvanceCorrelative(compDir, 'PED');
+    }
+  }
 
   const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
   const sellerCodven = order.codven || '';
@@ -369,13 +458,21 @@ export function injectOrderToMixnet(compDir, order) {
   const clientName = (clientCode === '000-001' || clientCode === '00') ? String(order.client_name || 'CUENTA RECUPERADA').slice(0, 60)
     : String(order.client_name || '').slice(0, 60);
 
+  // Cero huellas, cero firmas, cero notas técnicas (AGENTS.md Regla 5)
+  let cleanComen1 = '';
+  const rawNotes = String(order.notes || '').trim();
+  const isSystemTrace = /(solicitud\s+web|cat[aá]logo|asesor|mixnet|pedido|cotizaci[oó]n|online|tienda|e2e|test|prueba|\[)/i.test(rawNotes);
+  if (rawNotes && !isSystemTrace) {
+    cleanComen1 = rawNotes.slice(0, 35);
+  }
+
   const encRecord = buildRecordBuffer(sEnc, {
     numped,
     emision: today,
     cliente: clientCode,
     codsuc: '',
     codven: sellerCodven,
-    comen1: String(order.notes || '').replace(/\[MixNet\]/gi, '').replace(/PED-\d+/gi, '').trim().slice(0, 35),
+    comen1: cleanComen1,
     comen2: '',
     tot_ped: total.toFixed(2),
     estatus: 'PE',
@@ -385,28 +482,34 @@ export function injectOrderToMixnet(compDir, order) {
     cif: String(order.rif || '').slice(0, 15)
   });
 
-  const renRecords = items.map((it, idx) => {
+  const renRecords = items.map((it) => {
     let rawSku = String(it.sku || '').trim();
     if (!rawSku || rawSku.toUpperCase() === 'LIBRE' || rawSku.toUpperCase() === 'COTIZACION' || rawSku.toUpperCase() === 'CUSTOM') {
       rawSku = 'IN-OS';
     }
 
+    const itemMeta = resolveMixnetItemMeta(compDir, rawSku);
     const qty = parseFloat(it.qty || 1);
     const price = parseFloat(it.price_usd || 0);
     const totRen = parseFloat(it.subtotal_usd || (qty * price));
     return buildRecordBuffer(sRen, {
-      item: rawSku.slice(0, 15),
-      unidad: String(it.unit || 'UND').slice(0, 3).toUpperCase(),
+      item: itemMeta.item.slice(0, 15),
+      unidad: itemMeta.unidad.slice(0, 4),
+      bulto: itemMeta.bulto.slice(0, 4),
       cantidad: qty.toFixed(3),
       descrip: String(it.name || '').slice(0, 50),
       numped,
       emision: today,
       estatus: 'PE',
+      despacho: '0.000',
+      desbulto: '0.000',
       precio: price.toFixed(2),
+      desc: '0.00',
       tot_ren: totRen.toFixed(2),
-      iva: 'E',
+      iva: itemMeta.iva.slice(0, 1),
       cliente: clientCode,
-      codven: sellerCodven
+      codven: sellerCodven,
+      oferta: 'F'
     });
   });
 

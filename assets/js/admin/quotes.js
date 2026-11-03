@@ -127,15 +127,16 @@ function renderQuotesTable() {
       <td>
         <select class="sort-sel" style="min-width:120px;padding:6px 10px;font-size:12px"
           onchange="updateQuoteStatus('${q.id}',this.value)">
-          ${['pendiente','contactado','confirmado','confirmado_mixnet','convertido','cancelado'].map(s =>
-            `<option value="${s}" ${q.status===s?'selected':''}>${s === 'confirmado_mixnet' ? '📥 Insertar' :  s.charAt(0).toUpperCase()+s.slice(1)}</option>`
+          ${['pendiente','contactado','confirmado','convertido','cancelado'].map(s =>
+            `<option value="${s}" ${q.status===s?'selected':''}>${s.charAt(0).toUpperCase()+s.slice(1)}</option>`
           ).join('')}
+          ${['confirmado_mixnet', 'mixnet_enviado', 'pendiente_mixnet'].includes(q.status) ? `<option value="${q.status}" selected disabled>📥 Insertado MixNet</option>` : ''}
         </select>
       </td>
       <td>
         <div class="td-actions">
           <button class="btn-p sm" onclick="viewQuoteDetail('${q.id}')" title="Ver detalle">👁️</button>
-          ${q.status === 'confirmado_mixnet' || q.status === 'mixnet_enviado' ? `<span class="btn-o sm" style="background:#dbeafe;color:#1d4ed8;cursor:default" title="Insertada en MixNet">📥 Insertado</span>` : `<button class="btn-p sm" style="background:#1d4ed8;color:#fff" onclick="updateQuoteStatus('${q.id}','pendiente_mixnet')" title="Insertar cotización en MixNet ERP">📥 Insertar</button>`}
+          ${q.status === 'confirmado_mixnet' || q.status === 'mixnet_enviado' || q.status === 'pendiente_mixnet' ? `<span class="btn-o sm" style="background:#dbeafe;color:#1d4ed8;cursor:default" title="Insertada en MixNet">📥 Insertado</span>` : `<button class="btn-p sm" style="background:#1d4ed8;color:#fff" onclick="insertQuoteToMixnet('${q.id}')" title="Insertar cotización en MixNet ERP">📥 Insertar</button>`}
           <a class="btn-o sm" href="cotizador.html?edit=${q.id}" title="Editar cotización">✏️</a>
           <a class="btn-o sm" href="pos.html?quote=${encodeURIComponent(q.quote_number || q.id)}" title="Cargar y facturar en POS">💰</a>
           <button class="btn-send sm" onclick="sendMenuAbrir(event, quoteCtx('${q.id}'))"
@@ -163,29 +164,44 @@ function renderQuotesPag(totalCount) {
 
 function quotesGoPage(p) { quotePage = p; renderQuotesTable(); }
 
+async function insertQuoteToMixnet(id) {
+  const q = adminQuotes.find(x => x.id === id);
+  if (!q) return;
+  const sellerName = q.jjp_profiles?.name || 'Mostrador / Por asignar';
+  const total = quoteEstTotal(q);
+  const msg = '¿Insertar cotización en MixNet ERP (Servidor Tienda)?\n\n' +
+              '• Documento: ' + (q.quote_number || 'Sin número') + '\n' +
+              '• Cliente: ' + (q.client_name || '—') + '\n' +
+              '• Asesor: ' + sellerName + '\n' +
+              '• Total: ' + fmtPrice(total) + '\n\n' +
+              'El agente en Supervisor-PC registrará la cotización en MXENCCOT / MXRENCOT con correlativo consecutivo oficial.';
+  if (!confirm(msg)) return;
+
+  try {
+    const { error: taskErr } = await sb.from('jjp_mixnet_tasks').insert({
+      action: 'inject_quote',
+      payload: { quote: q, quote_id: id, target: 'supervisor' },
+      status: 'pending'
+    });
+    if (taskErr) throw taskErr;
+
+    await sb.from('jjp_quotes').update({ status: 'pendiente_mixnet' }).eq('id', id);
+    q.status = 'pendiente_mixnet';
+    showToast('📥 Tarea enviada a PC Supervisor · registrando en MixNet ERP');
+    renderQuotesTable();
+    closeQuoteDetail();
+  } catch (err) {
+    console.error('Error insertQuoteToMixnet:', err);
+    showToast('Error encolando inserción: ' + (err.message || err), 'err');
+  }
+}
+
 async function updateQuoteStatus(id, status) {
-  if (status === 'pendiente_mixnet' || status === 'confirmado_mixnet') {
-    if (!confirm('¿Insertar esta cotización en MixNet ERP?\n\nSe enviará al sistema administrativo de la tienda.')) {
-      renderQuotesTable();
-      return;
-    }
-  }
-  // Si es orden de inserción en MixNet, encolar tarea en jjp_mixnet_tasks
-  if (status === 'pendiente_mixnet' || status === 'confirmado_mixnet') {
-    try {
-      const qRow = adminQuotes.find(x => x.id === id);
-      await sb.from('jjp_mixnet_tasks').insert({
-        action: 'inject_quote',
-        payload: { quote: qRow, quote_id: id, target: 'supervisor' },
-        status: 'pending'
-      });
-    } catch (_) {}
-  }
   const { error } = await sb.from('jjp_quotes').update({ status }).eq('id', id);
   if (error) { showToast('Error al actualizar estado'); renderQuotesTable(); return; }
   const q = adminQuotes.find(x => x.id === id);
   if (q) q.status = status;
-  showToast(status === 'confirmado_mixnet' ? '📥 Cotización insertada · se enviará a MixNet' : `Estado → ${status}`);
+  showToast('Estado → ' + status);
   renderQuotesTable();
 }
 
@@ -330,7 +346,7 @@ href="cotizador.html?edit=${q.id}">✏️ Editar Cotización</a>
 href="pos.html?quote=${encodeURIComponent(q.quote_number || q.id)}">💰 Cargar en POS</a>
       <button class="btn-o" onclick="convertQuoteToOrder('${q.id}')" ${allPriced ? '' : 'disabled title="Todos los productos necesitan precio"'}
         style="${allPriced ? '' : 'opacity:.5;cursor:not-allowed'}">🛒 Convertir en pedido</button>
-      ${q.status === 'confirmado_mixnet' || q.status === 'mixnet_enviado' ? `<span class="btn-o" style="width:auto;padding:12px 20px;background:#dbeafe;color:#1d4ed8;cursor:default">📥 Insertado en MixNet</span>` : `<button class="btn-p" style="width:auto;padding:12px 20px;background:#1d4ed8;color:#fff;font-weight:700" onclick="updateQuoteStatus('${q.id}','pendiente_mixnet')">📥 Insertar</button>`}
+      ${q.status === 'confirmado_mixnet' || q.status === 'mixnet_enviado' || q.status === 'pendiente_mixnet' ? `<span class="btn-o" style="width:auto;padding:12px 20px;background:#dbeafe;color:#1d4ed8;cursor:default">📥 Insertado en MixNet</span>` : `<button class="btn-p" style="width:auto;padding:12px 20px;background:#1d4ed8;color:#fff;font-weight:700" onclick="insertQuoteToMixnet('${q.id}')">📥 Insertar</button>`}
     </div>`;
 
   modal.classList.add('op');

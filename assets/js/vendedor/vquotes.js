@@ -246,7 +246,11 @@ async function loadQuoteForEdit(val) {
   
   if (q.customer_id) {
     quoteCustomer = { id: q.customer_id, name: q.client_name, rif: q.rif, phone: q.phone, city: q.city };
+  } else {
+    quoteCustomer = null;
   }
+  const qSearch = document.getElementById('qCliSearch');
+  if (qSearch) qSearch.value = q.client_name || '';
   if (q.seller_id && document.getElementById('qSellerSelect')) {
     document.getElementById('qSellerSelect').value = q.seller_id;
   }
@@ -950,7 +954,15 @@ async function quoteSubmit() {
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     const cleanSellerId = (sellerId && uuidRegex.test(String(sellerId).trim())) ? String(sellerId).trim() : null;
     const rawCustId = (typeof quoteCustomer !== 'undefined' && quoteCustomer?.id) ? quoteCustomer.id : null;
-    const cleanCustId = (rawCustId && uuidRegex.test(String(rawCustId).trim())) ? String(rawCustId).trim() : null;
+    let cleanCustId = (rawCustId && uuidRegex.test(String(rawCustId).trim())) ? String(rawCustId).trim() : null;
+    if (cleanCustId && quoteCustomer?.name) {
+      const curNameNorm = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const pickedNameNorm = String(quoteCustomer.name).toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (curNameNorm && pickedNameNorm && !curNameNorm.includes(pickedNameNorm) && !pickedNameNorm.includes(curNameNorm)) {
+        cleanCustId = null;
+        quoteCustomer = null;
+      }
+    }
 
     const quote = {
       client_name: name,
@@ -1043,6 +1055,7 @@ async function quoteSubmit() {
       }
       editingQuoteId = null;
       editingQuoteNumber = null;
+      quoteCustomer = null;
       const subBtn = document.getElementById('qSubmitBtn');
       if (subBtn) subBtn.innerHTML = '📋 Guardar Cotización';
       quoteShowDone(quote);

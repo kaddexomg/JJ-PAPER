@@ -9,7 +9,7 @@ let ordersFilter = '';
 let ordersSearch = '';
 let ordersSellerFilter = '';
 
-const ORDER_STATUSES = ['pendiente_pago', 'verificando', 'pagado', 'preparando', 'entregado', 'confirmado_mixnet', 'rechazado', 'cancelado'];
+const ORDER_STATUSES = ['pendiente_pago', 'verificando', 'pagado', 'preparando', 'entregado', 'rechazado', 'cancelado'];
 const STATUS_LABEL = {
   pendiente_pago: 'Pendiente de pago',
   verificando:    'Verificando pago',
@@ -180,14 +180,13 @@ function renderOrdersTable() {
       <td>
         <select class="status-sel st-${o.status}" onchange="updateOrderStatus('${o.id}', this.value)">
           ${ORDER_STATUSES.map(s => `<option value="${s}" ${o.status === s ? 'selected' : ''}>${STATUS_LABEL[s]}</option>`).join('')}
+          ${['confirmado_mixnet', 'mixnet_enviado', 'pendiente_mixnet'].includes(o.status) ? `<option value="${o.status}" selected disabled>📥 Insertado en MixNet</option>` : ''}
         </select>
       </td>
       <td>
         <div class="td-actions">
           <button class="btn-p sm" onclick="viewOrder('${o.id}')">👁️ Ver</button>
-          ${o.status === 'confirmado_mixnet' || o.status === 'mixnet_enviado'
-            ? `<span class="btn-o sm" style="background:#dbeafe;color:#1d4ed8;cursor:default" title="Insertado en el sistema administrativo">📥 Insertado</span>`
-            : `<button class="btn-p sm" style="background:#1d4ed8;color:#fff" onclick="updateOrderStatus('${o.id}','pendiente_mixnet')" title="Insertar en el sistema administrativo">📥 Insertar</button>`}
+          ${o.status === 'confirmado_mixnet' || o.status === 'mixnet_enviado' || o.status === 'pendiente_mixnet' ? `<span class="btn-o sm" style="background:#dbeafe;color:#1d4ed8;cursor:default" title="Insertado en el sistema administrativo">📥 Insertado</span>` : `<button class="btn-p sm" style="background:#1d4ed8;color:#fff" onclick="insertOrderToMixnet('${o.id}')" title="Insertar en el sistema administrativo">📥 Insertar</button>`}
           <a class="btn-o sm" href="pos.html?order=${encodeURIComponent(o.order_number || o.id)}" title="Editar pedido en POS sin duplicar">✏️</a>
           <button class="btn-send sm" onclick="sendMenuAbrir(event, ordCtx('${o.id}'))"
                   title="Enviar factura, recibo o estado al cliente" aria-haspopup="menu">📤</button>
@@ -414,7 +413,7 @@ function viewOrder(id) {
     </div>
     <div class="ord-quick">
       <button class="bulk-btn green" onclick="updateOrderStatus('${o.id}','pagado'); document.getElementById('ordModalStatus').value='pagado'">✅ Confirmar pago</button>
-      ${o.status === 'confirmado_mixnet' || o.status === 'mixnet_enviado' ? `<span class="bulk-btn" style="background:#dbeafe;color:#1d4ed8;cursor:default">📥 Insertado en MixNet</span>` : `<button class="bulk-btn" style="background:#1d4ed8;color:#fff" onclick="updateOrderStatus('${o.id}','confirmado_mixnet'); document.getElementById('ordModalStatus').value='confirmado_mixnet'">📥 Insertar</button>`}
+      ${o.status === 'confirmado_mixnet' || o.status === 'mixnet_enviado' || o.status === 'pendiente_mixnet' ? `<span class="bulk-btn" style="background:#dbeafe;color:#1d4ed8;cursor:default">📥 Insertado en MixNet</span>` : `<button class="bulk-btn" style="background:#1d4ed8;color:#fff" onclick="insertOrderToMixnet('${o.id}')">📥 Insertar</button>`}
       <button class="bulk-btn red" onclick="updateOrderStatus('${o.id}','rechazado'); document.getElementById('ordModalStatus').value='rechazado'">✕ Rechazar</button>
       ${['rechazado','cancelado'].includes(o.status) ? `<button class="bulk-btn red" onclick="deleteOrder('${o.id}')" title="Borra el pedido definitivamente de la lista">🗑️ Eliminar</button>` : ''}
       <a class="btn-o" style="width:auto;padding:9px 16px;background:#fef3c7;color:#92400e;border-color:#f59e0b;font-weight:700"

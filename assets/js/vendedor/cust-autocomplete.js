@@ -121,26 +121,26 @@ async function custAcSearch(nameId, boxId, opts) {
     const isMixCode = (searchCode && (searchCode.includes('-') || searchCode === '000-001' || searchCode === '00')) || /^[0-9]{2,4}-[0-9A-Za-z]+$/.test(cleanQ);
 
     const orParts = [];
-    orParts.push(`name.ilike.%${cleanQ}%`);
-    orParts.push(`rif.ilike.%${cleanQ}%`);
+    orParts.push(`name.ilike.*${cleanQ}*`);
+    orParts.push(`rif.ilike.*${cleanQ}*`);
 
     // Búsqueda en notas (código MixNet completo o parcial ej: 251, o texto)
     if (isMixCode) {
       const codeToSearch = searchCode && searchCode.includes('-') ? searchCode : cleanQ;
-      orParts.push(`notes.ilike.%${codeToSearch}%`);
+      orParts.push(`notes.ilike.*${codeToSearch}*`);
     } else if (cleanQ.length >= 2) {
-      orParts.push(`notes.ilike.%${cleanQ}%`);
+      orParts.push(`notes.ilike.*${cleanQ}*`);
     }
 
     // Búsqueda por teléfono: solo si se ingresaron al menos 4 dígitos para evitar que "04" traiga todo el país
     if (digits && digits.length >= 4) {
-      orParts.push(`phone.ilike.%${digits}%`);
+      orParts.push(`phone.ilike.*${digits}*`);
     }
 
     // Caso especial Cuenta Recuperada
     if (isRecuperadaQuery) {
       orParts.push(`rif.eq.00`);
-      orParts.push(`name.ilike.%recuperad%`);
+      orParts.push(`name.ilike.*recuperad*`);
     }
 
     const or = orParts.join(',');

@@ -86,9 +86,7 @@ function renderVOrders() {
       <td><div class="td-actions">
         <button class="btn-p sm" onclick="viewVOrder('${o.id}')">👁️ Ver</button>
         <a class="btn-o sm" href="pos.html?order=${encodeURIComponent(o.order_number || o.id)}" title="Editar pedido en POS sin duplicar">✏️</a>
-        ${o.status === 'confirmado_mixnet'
-          ? `<span class="btn-o sm" style="background:#dbeafe;color:#1d4ed8;cursor:default" title="Insertado en MixNet">📥 Insertado</span>`
-          : `<button class="btn-p sm" style="background:#1d4ed8;color:#fff" onclick="confirmVOrderToMixnet('${o.id}')" title="Insertar en MixNet">📥 Insertar</button>`}
+        ${o.status === 'confirmado_mixnet' || o.status === 'mixnet_enviado' || o.status === 'pendiente_mixnet' ? `<span class="btn-o sm" style="background:#dbeafe;color:#1d4ed8;cursor:default" title="Insertado en MixNet">📥 Insertado</span>` : `<button class="btn-p sm" style="background:#1d4ed8;color:#fff" onclick="confirmVOrderToMixnet('${o.id}')" title="Insertar en MixNet">📥 Insertar</button>`}
         ${['rechazado','cancelado'].includes(o.status) ? `<button class="btn-danger sm" onclick="deleteVOrder('${o.id}')" title="Eliminar definitivamente">🗑️</button>` : ''}
         <button class="btn-send sm" onclick="sendMenuAbrir(event, vOrderCtx('${o.id}'))"
                 title="Enviar factura, recibo o estado al cliente" aria-haspopup="menu">📤</button>
@@ -101,19 +99,26 @@ function renderVOrders() {
 async function confirmVOrderToMixnet(id) {
   const o = vOrders.find(x => x.id === id);
   if (!o) return;
-  if (!confirm(`¿Insertar el pedido ${o.order_number} en MixNet ERP?\n\nSe enviará al sistema administrativo de la tienda.`)) return;
+  const sellerName = (typeof SELLER !== 'undefined' && SELLER?.name) ? SELLER.name : 'Vendedor';
+  const msg = '¿Insertar pedido en MixNet ERP (Servidor Tienda)?\n\n' +
+              '• Documento: ' + (o.order_number || 'Sin número') + '\n' +
+              '• Cliente: ' + (o.client_name || '—') + '\n' +
+              '• Asesor: ' + sellerName + '\n' +
+              '• Total: ' + fmtPrice(o.total_usd) + '\n\n' +
+              'El agente en Supervisor-PC registrará el pedido en MXENCPED / MXRENPED con correlativo consecutivo oficial.';
+  if (!confirm(msg)) return;
+
   try {
-    const { error } = await sb.from('jjp_orders').update({ status: 'pendiente_mixnet', updated_at: new Date().toISOString() }).eq('id', id);
-    if (error) throw error;
-    try {
-      await sb.from('jjp_mixnet_tasks').insert({
-        action: 'inject_order',
-        payload: { order: o, order_id: id, target: 'supervisor' },
-        status: 'pending'
-      });
-    } catch (_) {}
-    o.status = 'confirmado_mixnet';
-    if (typeof showToast === 'function') showToast('📥 Pedido insertado · se enviará a MixNet');
+    const { error: taskErr } = await sb.from('jjp_mixnet_tasks').insert({
+      action: 'inject_order',
+      payload: { order: o, order_id: id, target: 'supervisor' },
+      status: 'pending'
+    });
+    if (taskErr) throw taskErr;
+
+    await sb.from('jjp_orders').update({ status: 'pendiente_mixnet', updated_at: new Date().toISOString() }).eq('id', id);
+    o.status = 'pendiente_mixnet';
+    if (typeof showToast === 'function') showToast('📥 Tarea enviada a PC Supervisor · registrando en MixNet ERP');
     renderVOrders();
     if (document.getElementById('vOrderModal')?.classList.contains('op')) viewVOrder(id);
   } catch (e) {

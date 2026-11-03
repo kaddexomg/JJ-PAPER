@@ -107,9 +107,7 @@ function renderVQuotes() {
         <button class="btn-p sm" onclick="viewVQuote('${q.id}')" title="Ver detalle">👁️ Ver</button>
         <a class="btn-o sm" href="cotizador.html?edit=${q.id}" title="Editar cotización">✏️</a>
         <a class="btn-o sm" href="pos.html?quote=${encodeURIComponent(q.quote_number || q.id)}" title="Pasar a Pedido">📋</a>
-        ${q.status === 'confirmado_mixnet'
-          ? `<span class="btn-o sm" style="background:#dbeafe;color:#1d4ed8;cursor:default" title="Insertada en MixNet">📥 Insertado</span>`
-          : `<button class="btn-p sm" style="background:#1d4ed8;color:#fff" onclick="confirmVQuoteToMixnet('${q.id}')" title="Insertar cotización en MixNet ERP">📥 Insertar</button>`}
+        ${q.status === 'confirmado_mixnet' || q.status === 'mixnet_enviado' || q.status === 'pendiente_mixnet' ? `<span class="btn-o sm" style="background:#dbeafe;color:#1d4ed8;cursor:default" title="Insertada en MixNet">📥 Insertado</span>` : `<button class="btn-p sm" style="background:#1d4ed8;color:#fff" onclick="confirmVQuoteToMixnet('${q.id}')" title="Insertar cotización en MixNet ERP">📥 Insertar</button>`}
         <a class="btn-o sm" style="width:auto;padding:7px 10px" target="_blank"
            href="../comprobante.html?q=${encodeURIComponent(q.quote_number || '')}&print=1" title="Imprimir">🖨️</a>
       </div></td>
@@ -250,28 +248,45 @@ function vQuoteCtx(id) {
 }
 
 async function updateVQuoteStatus(id, status) {
-  if (status === 'confirmado_mixnet' && !confirm('¿Insertar esta cotización en MixNet ERP?\n\nSe enviará al sistema administrativo de la tienda.')) { renderVQuotes(); return; }
   const { error } = await sb.from('jjp_quotes').update({ status }).eq('id', id);
   if (error) { showToast('No se pudo actualizar el estado', 'err'); return; }
   const q = vQuotes.find(x => x.id === id);
   if (q) q.status = status;
-  showToast(status === 'cancelado' ? 'Cotización anulada' : (status === 'confirmado_mixnet' ? '📥 Cotización insertada · escribiendo en MixNet ERP' : `Estado → ${VQ_STATUS_LABEL[status] || status}`));
+  showToast(status === 'cancelado' ? 'Cotización anulada' : `Estado → ${VQ_STATUS_LABEL[status] || status}`);
   renderVQuotes();
 }
 
-// Confirmar cotización para su envío a MixNet (el agente de la Win7 asigna el correlativo real)
+// Confirmar cotización para su envío a MixNet (el agente en Supervisor-PC asigna el correlativo oficial)
 async function confirmVQuoteToMixnet(id) {
   const q = vQuotes.find(x => x.id === id);
-  const label = q?.quote_number ? '#' + q.quote_number : 'esta cotización';
-  if (!confirm(`¿Insertar ${label} en MixNet ERP?\n\nSe enviará al sistema administrativo de la tienda.`)) return;
-  await updateVQuoteStatus(id, 'pendiente_mixnet');
+  if (!q) return;
+  const sellerName = (typeof SELLER !== 'undefined' && SELLER?.name) ? SELLER.name : 'Vendedor';
+  const total = vqTotal(q);
+  const msg = '¿Insertar cotización en MixNet ERP (Servidor Tienda)?\n\n' +
+              '• Documento: ' + (q.quote_number || 'Sin número') + '\n' +
+              '• Cliente: ' + (q.client_name || '—') + '\n' +
+              '• Asesor: ' + sellerName + '\n' +
+              '• Total: ' + fmtPrice(total) + '\n\n' +
+              'El agente en Supervisor-PC registrará la cotización en MXENCCOT / MXRENCOT con correlativo consecutivo oficial.';
+  if (!confirm(msg)) return;
+
   try {
-    await sb.from('jjp_mixnet_tasks').insert({
+    const { error: taskErr } = await sb.from('jjp_mixnet_tasks').insert({
       action: 'inject_quote',
       payload: { quote: q, quote_id: id, target: 'supervisor' },
       status: 'pending'
     });
-  } catch (_) {}
+    if (taskErr) throw taskErr;
+
+    await sb.from('jjp_quotes').update({ status: 'pendiente_mixnet' }).eq('id', id);
+    q.status = 'pendiente_mixnet';
+    showToast('📥 Tarea enviada a PC Supervisor · registrando en MixNet ERP');
+    renderVQuotes();
+    closeVQuoteModal();
+  } catch (err) {
+    console.error('Error confirmVQuoteToMixnet:', err);
+    showToast('Error encolando inserción: ' + (err.message || err), 'err');
+  }
 }
 
 /* ---------- Convertir cotización en venta ----------

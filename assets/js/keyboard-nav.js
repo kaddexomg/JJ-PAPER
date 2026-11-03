@@ -88,7 +88,77 @@
     const totalRows = allRows.length;
     if (totalRows === 0) return false;
 
-    // Enter: Confirmar y saltar al siguiente campo o siguiente fila
+    // A. Flecha Derecha (ArrowRight): Navegación horizontal Name -> Qty -> Price -> Siguiente fila
+    if (e.key === 'ArrowRight') {
+      if (field === 'name' && inputEl.selectionEnd < inputEl.value.length && !e.ctrlKey && !e.altKey) {
+        return false;
+      }
+      e.preventDefault();
+      if (field === 'name') {
+        const qtyIn = document.querySelector(`input[data-ticket-field="qty"][data-ticket-idx="${rowIdx}"]`);
+        if (qtyIn) { qtyIn.focus(); qtyIn.select?.(); return true; }
+      } else if (field === 'qty') {
+        const priceIn = document.querySelector(`input[data-ticket-field="price"][data-ticket-idx="${rowIdx}"]`);
+        if (priceIn) { priceIn.focus(); priceIn.select?.(); return true; }
+      } else if (field === 'price') {
+        if (rowIdx + 1 < totalRows) {
+          const nextIn = document.querySelector(`input[data-ticket-field="name"][data-ticket-idx="${rowIdx + 1}"]`) ||
+                         document.querySelector(`input[data-ticket-field="qty"][data-ticket-idx="${rowIdx + 1}"]`);
+          if (nextIn) { nextIn.focus(); nextIn.select?.(); return true; }
+        }
+      }
+      return true;
+    }
+
+    // B. Flecha Izquierda (ArrowLeft): Navegación horizontal Price -> Qty -> Name -> Fila anterior
+    if (e.key === 'ArrowLeft') {
+      if (field === 'name' && inputEl.selectionStart > 0 && !e.ctrlKey && !e.altKey) {
+        return false;
+      }
+      e.preventDefault();
+      if (field === 'price') {
+        const qtyIn = document.querySelector(`input[data-ticket-field="qty"][data-ticket-idx="${rowIdx}"]`);
+        if (qtyIn) { qtyIn.focus(); qtyIn.select?.(); return true; }
+      } else if (field === 'qty') {
+        const nameIn = document.querySelector(`input[data-ticket-field="name"][data-ticket-idx="${rowIdx}"]`);
+        if (nameIn) { nameIn.focus(); nameIn.select?.(); return true; }
+      } else if (field === 'name') {
+        if (rowIdx - 1 >= 0) {
+          const prevIn = document.querySelector(`input[data-ticket-field="price"][data-ticket-idx="${rowIdx - 1}"]`) ||
+                         document.querySelector(`input[data-ticket-field="qty"][data-ticket-idx="${rowIdx - 1}"]`);
+          if (prevIn) { prevIn.focus(); prevIn.select?.(); return true; }
+        }
+      }
+      return true;
+    }
+
+    // C. Flecha Abajo (ArrowDown): Navegar verticalmente a la siguiente fila en el mismo campo
+    if (e.key === 'ArrowDown') {
+      if (rowIdx + 1 < totalRows) {
+        e.preventDefault();
+        const nextIn = document.querySelector(`input[data-ticket-field="${field}"][data-ticket-idx="${rowIdx + 1}"]`) ||
+                       document.querySelector(`input[data-ticket-field="qty"][data-ticket-idx="${rowIdx + 1}"]`);
+        if (nextIn) { nextIn.focus(); nextIn.select?.(); return true; }
+      }
+      return true;
+    }
+
+    // D. Flecha Arriba (ArrowUp): Navegar verticalmente a la fila anterior en el mismo campo
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (rowIdx - 1 >= 0) {
+        const prevIn = document.querySelector(`input[data-ticket-field="${field}"][data-ticket-idx="${rowIdx - 1}"]`) ||
+                       document.querySelector(`input[data-ticket-field="qty"][data-ticket-idx="${rowIdx - 1}"]`);
+        if (prevIn) { prevIn.focus(); prevIn.select?.(); return true; }
+      } else {
+        // En la primera fila arriba: regresar el foco al buscador de productos
+        const searchIn = document.getElementById('posSearch');
+        if (searchIn) { searchIn.focus(); searchIn.select?.(); return true; }
+      }
+      return true;
+    }
+
+    // E. Enter: Confirmar y saltar al siguiente campo o siguiente fila
     // Flujo contable ergonómico: Nombre -> Cantidad -> Precio -> Siguiente fila
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -101,7 +171,6 @@
         const priceIn = document.querySelector(`input[data-ticket-field="price"][data-ticket-idx="${rowIdx}"]`);
         if (priceIn) { priceIn.focus(); priceIn.select?.(); return true; }
       } else if (field === 'price') {
-        // Si hay una siguiente fila, saltar al primer campo de la siguiente fila (Cantidad o Nombre)
         if (rowIdx + 1 < totalRows) {
           const nextIn = document.querySelector(`input[data-ticket-field="qty"][data-ticket-idx="${rowIdx + 1}"]`) ||
                          document.querySelector(`input[data-ticket-field="name"][data-ticket-idx="${rowIdx + 1}"]`);
@@ -122,33 +191,23 @@
       return true;
     }
 
-    // Flechas Arriba y Abajo entre filas
-    // En campos de número (qty, price), permitir que las flechas nativas aumenten/reduzcan la cantidad
-    // Solo saltar de fila si se presiona en 'name' o con Ctrl/Alt
-    if (e.key === 'ArrowDown') {
-      if (field === 'name' || e.ctrlKey || e.altKey) {
-        if (rowIdx + 1 < totalRows) {
+    // F. Teclas '+' y '-' en campo 'qty': modificar cantidad en vivo
+    if (field === 'qty') {
+      const ticketKey = inputEl.getAttribute('data-ticket-key');
+      if (ticketKey && typeof posQty === 'function') {
+        if (e.key === '+' || e.key === '=') {
           e.preventDefault();
-          const nextIn = document.querySelector(`input[data-ticket-field="${field}"][data-ticket-idx="${rowIdx + 1}"]`);
-          if (nextIn) { nextIn.focus(); nextIn.select?.(); return true; }
-        }
-      }
-    } else if (e.key === 'ArrowUp') {
-      if (field === 'name' || e.ctrlKey || e.altKey) {
-        if (rowIdx - 1 >= 0) {
+          posQty(ticketKey, 1);
+          return true;
+        } else if (e.key === '-' || e.key === '_') {
           e.preventDefault();
-          const prevIn = document.querySelector(`input[data-ticket-field="${field}"][data-ticket-idx="${rowIdx - 1}"]`);
-          if (prevIn) { prevIn.focus(); prevIn.select?.(); return true; }
-        } else {
-          // En la primera fila arriba: saltar al buscador
-          e.preventDefault();
-          const searchIn = document.getElementById('posSearch');
-          if (searchIn) { searchIn.focus(); searchIn.select?.(); return true; }
+          posQty(ticketKey, -1);
+          return true;
         }
       }
     }
 
-    // Escape dentro de la celda: quitar el foco y volver al buscador
+    // G. Escape dentro de la celda: quitar el foco y volver al buscador
     if (e.key === 'Escape') {
       e.preventDefault();
       inputEl.blur();

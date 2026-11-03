@@ -199,6 +199,53 @@ function posNavTo(idx) {
 }
 
 // Agrega el resultado seleccionado con el cursor (Enter)
+
+// Navegación por teclado dentro del input buscador de productos
+function posSearchKey(e) {
+  if (document.querySelector('.pf-popup-mask')) return;
+  if (e.key === 'ArrowDown') { e.preventDefault(); posNav(1); return; }
+  if (e.key === 'ArrowUp') { e.preventDefault(); posNav(-1); return; }
+  if (e.key === 'PageDown') { e.preventDefault(); posNav(5); return; }
+  if (e.key === 'PageUp') { e.preventDefault(); posNav(-5); return; }
+  if (e.key === 'Home') { e.preventDefault(); posNavTo(0); return; }
+  if (e.key === 'End') { e.preventDefault(); posNavTo(posResultsList.length - 1); return; }
+  if (e.key === 'Escape') {
+    const se = document.getElementById('posSearch');
+    const box = document.getElementById('posResults');
+    if (box) box.style.display = 'none';
+    if (se && se.value.trim()) { se.value = ''; posSearch(); }
+    return;
+  }
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); posSubmit(); return; }
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+
+  const se = document.getElementById('posSearch');
+  const code = se ? se.value.trim() : '';
+  if (!code) return;
+
+  if (posCursor >= 0 && posResultsList[posCursor]) {
+    posPickIdx();
+    return;
+  }
+
+  if (typeof pfFindByCode === 'function') {
+    const hit = pfFindByCode(posProducts, code);
+    if (hit) {
+      posAddAndPick(hit.product, hit.variant);
+      showToast('➕ ' + hit.product.name);
+      se.value = '';
+      posSearch();
+      return;
+    }
+  }
+
+  if (posResultsList.length) {
+    posNavTo(0);
+    posPickIdx();
+  }
+}
+
 function posPickIdx() {
   const p = posResultsList[posCursor];
   if (!p) return;
@@ -1123,7 +1170,16 @@ function posInitGlobalKeys() {
           posSetPriceLevel(keys[posTicketCursor], lvlKey);
           return;
         }
-        if (e.key === 'Enter' || e.key === 'Escape' || e.key === 'F2') {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const targetIn = document.querySelector(`input[data-ticket-field="qty"][data-ticket-idx="${posTicketCursor}"]`);
+          if (targetIn) {
+            targetIn.focus();
+            targetIn.select?.();
+            return;
+          }
+        }
+        if (e.key === 'Escape' || e.key === 'F2') {
           e.preventDefault();
           posTicketCursor = -1;
           posRenderTicket();

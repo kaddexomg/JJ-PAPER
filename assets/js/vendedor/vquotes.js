@@ -2040,7 +2040,16 @@ function quoteInitGlobalKeys() {
           posSetPriceLevel(keys[quoteTicketCursor], lvlKey);
           return;
         }
-        if (e.key === 'Enter' || e.key === 'Escape' || e.key === 'F2') {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const targetIn = document.querySelector(`input[data-ticket-field="qty"][data-ticket-idx="${quoteTicketCursor}"]`);
+          if (targetIn) {
+            targetIn.focus();
+            targetIn.select?.();
+            return;
+          }
+        }
+        if (e.key === 'Escape' || e.key === 'F2') {
           e.preventDefault();
           quoteTicketCursor = -1;
           posRenderTicket();

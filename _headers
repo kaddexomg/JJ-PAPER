@@ -30,3 +30,9 @@
 
 /assets/js/keyboard-nav.js
   Cache-Control: no-cache, no-store, must-revalidate
+
+/assets/js/vendedor/pos.js
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/assets/js/vendedor/vquotes.js
+  Cache-Control: no-cache, no-store, must-revalidate

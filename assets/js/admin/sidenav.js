@@ -1067,11 +1067,323 @@
       body.sidebar-collapsed .admin-main { margin-left: 0 !important; }
       .jjp-aside-toggle { display: none !important; }
     }
+
+    /* PÍLDORA Y PALETA DE COMANDOS (Ctrl+K) */
+    .jjp-cmd-pill {
+      display: flex !important; align-items: center !important; justify-content: space-between !important;
+      margin: 8px 14px 10px !important; padding: 7px 12px !important; border-radius: 10px !important;
+      background: rgba(255, 255, 255, 0.06) !important; border: 1px solid rgba(255, 255, 255, 0.14) !important;
+      color: rgba(255, 255, 255, 0.78) !important; font-size: 12px !important; font-weight: 600 !important;
+      cursor: pointer !important; transition: all .18s !important; backdrop-filter: blur(8px) !important;
+    }
+    .jjp-cmd-pill:hover {
+      background: rgba(255, 255, 255, 0.14) !important; color: #fff !important; border-color: rgba(255, 255, 255, 0.25) !important;
+    }
+    .jjp-cmd-pill kbd {
+      background: rgba(0, 0, 0, 0.35) !important; border: 1px solid rgba(255, 255, 255, 0.2) !important;
+      border-radius: 4px !important; padding: 1px 5px !important; font-size: 10px !important; font-family: monospace !important; color: #fff !important;
+    }
+    [data-theme="light"] .jjp-cmd-pill {
+      background: rgba(0, 0, 0, 0.04) !important; border-color: rgba(0, 0, 0, 0.1) !important; color: #475569 !important;
+    }
+    [data-theme="light"] .jjp-cmd-pill:hover {
+      background: rgba(0, 0, 0, 0.08) !important; color: #0f172a !important;
+    }
+    [data-theme="light"] .jjp-cmd-pill kbd {
+      background: #e2e8f0 !important; border-color: #cbd5e1 !important; color: #0f172a !important;
+    }
+    .admin-aside.collapsed .jjp-cmd-pill {
+      display: none !important;
+    }
+
+    .jjp-palette-mask {
+      position: fixed !important; inset: 0 !important; background: rgba(10, 16, 28, 0.72) !important;
+      backdrop-filter: blur(8px) !important; -webkit-backdrop-filter: blur(8px) !important;
+      z-index: 1000000 !important; display: flex !important; align-items: flex-start !important; justify-content: center !important;
+      padding-top: 12vh !important;
+    }
+    .jjp-palette-box {
+      width: 100% !important; max-width: 580px !important; background: #ffffff !important;
+      border-radius: 16px !important; box-shadow: 0 24px 60px rgba(0,0,0,0.45) !important;
+      overflow: hidden !important; border: 1px solid rgba(255,255,255,0.2) !important;
+      animation: jjpPop 0.16s ease-out !important;
+    }
+    [data-theme="dark"] .jjp-palette-box {
+      background: #0f172a !important; border-color: rgba(255, 255, 255, 0.16) !important; color: #f8fafc !important;
+    }
+    @keyframes jjpPop { from { transform: scale(0.96); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    .jjp-palette-input-wrap {
+      display: flex !important; align-items: center !important; padding: 14px 18px !important;
+      border-bottom: 1px solid #e2e8f0 !important; gap: 12px !important; background: inherit !important;
+    }
+    [data-theme="dark"] .jjp-palette-input-wrap {
+      border-bottom-color: rgba(255, 255, 255, 0.1) !important;
+    }
+    .jjp-palette-search-icon { font-size: 18px !important; opacity: 0.7 !important; }
+    #jjpPaletteInput {
+      flex: 1 !important; border: 0 !important; outline: 0 !important; font-size: 15px !important;
+      font-family: inherit !important; color: #0f172a !important; background: transparent !important;
+    }
+    [data-theme="dark"] #jjpPaletteInput { color: #f8fafc !important; }
+    .jjp-palette-badge {
+      font-size: 11px !important; background: rgba(0,0,0,0.06) !important; color: #64748b !important; padding: 3px 7px !important;
+      border-radius: 4px !important; font-weight: 600 !important;
+    }
+    [data-theme="dark"] .jjp-palette-badge { background: rgba(255,255,255,0.08) !important; color: #94a3b8 !important; }
+    .jjp-palette-list {
+      max-height: 380px !important; overflow-y: auto !important; padding: 8px !important;
+    }
+    .jjp-palette-item {
+      display: flex !important; align-items: center !important; gap: 12px !important; padding: 10px 14px !important;
+      border-radius: 10px !important; cursor: pointer !important; transition: background 0.15s !important;
+    }
+    .jjp-palette-item.active {
+      background: #f0fdf4 !important; color: #166534 !important;
+    }
+    [data-theme="dark"] .jjp-palette-item.active {
+      background: rgba(16, 185, 129, 0.22) !important; color: #34d399 !important;
+    }
+    .jjp-palette-item-icon { font-size: 18px !important; display: flex !important; align-items: center !important; }
+    .jjp-palette-item-text { flex: 1 !important; min-width: 0 !important; }
+    .jjp-palette-item-title { font-weight: 700 !important; font-size: 13.5px !important; color: inherit !important; }
+    .jjp-palette-item-sub { font-size: 11.5px !important; opacity: 0.7 !important; }
+    .jjp-palette-item-arrow { opacity: 0.3 !important; font-size: 13px !important; font-weight: 800 !important; }
+    .jjp-palette-item.active .jjp-palette-item-arrow { opacity: 1 !important; }
+    .jjp-palette-footer {
+      display: flex !important; gap: 16px !important; padding: 10px 18px !important; background: rgba(0,0,0,0.02) !important;
+      border-top: 1px solid #e2e8f0 !important; font-size: 11px !important; color: #64748b !important;
+    }
+    [data-theme="dark"] .jjp-palette-footer {
+      background: rgba(0,0,0,0.2) !important; border-top-color: rgba(255, 255, 255, 0.08) !important; color: #94a3b8 !important;
+    }
+    .jjp-palette-footer kbd {
+      background: rgba(0,0,0,0.06) !important; border: 1px solid rgba(0,0,0,0.1) !important; border-radius: 3px !important; padding: 1px 4px !important;
+    }
+    [data-theme="dark"] .jjp-palette-footer kbd {
+      background: rgba(255,255,255,0.1) !important; border-color: rgba(255,255,255,0.18) !important; color: #fff !important;
+    }
+    .jjp-palette-empty {
+      padding: 30px !important; text-align: center !important; color: #94a3b8 !important; font-size: 14px !important;
+    }
     `;
     const style = document.createElement('style');
     style.id = 'jjp-sidenav-css';
     style.textContent = css;
     document.head.appendChild(style);
+  }
+
+  function escapeHTML(str) {
+    return String(str || '').replace(/[&<>'"]/g, tag => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      "'": '&#39;',
+      '"': '&quot;'
+    }[tag] || tag));
+  }
+
+  function loadKeyboardNav() {
+    if (document.getElementById('jjp-keyboard-nav-script') || window.__JJ_KEYBOARD_NAV_INITIALIZED__) return;
+    const s = document.createElement('script');
+    s.id = 'jjp-keyboard-nav-script';
+    s.src = '../assets/js/keyboard-nav.js?v=20261103_hub';
+    document.head.appendChild(s);
+  }
+
+  function initCommandPalette() {
+    if (window.__jjpCmdPaletteInit) return;
+    window.__jjpCmdPaletteInit = true;
+
+    const aside = document.querySelector('.admin-aside') || document.querySelector('aside.aside');
+    const asideBrand = aside?.querySelector('.aside-brand');
+    if (asideBrand && !document.getElementById('jjpCmdPill')) {
+      const pill = document.createElement('div');
+      pill.id = 'jjpCmdPill';
+      pill.className = 'jjp-cmd-pill';
+      pill.innerHTML = `<span>🧭 Ir a módulo...</span><kbd>Ctrl+K</kbd>`;
+      pill.onclick = openPalette;
+      asideBrand.parentNode.insertBefore(pill, asideBrand.nextSibling);
+    }
+
+    let modal = document.getElementById('jjpCmdPaletteModal');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'jjpCmdPaletteModal';
+      modal.className = 'jjp-palette-mask';
+      modal.style.display = 'none';
+      modal.innerHTML = `
+        <div class="jjp-palette-box" role="dialog" aria-modal="true" aria-label="Navegador Rápido">
+          <div class="jjp-palette-input-wrap">
+            <span class="jjp-palette-search-icon">🔍</span>
+            <input type="text" id="jjpPaletteInput" placeholder="Escribe para ir a cualquier módulo (ej. pos, cotizador, clientes, whatsapp)..." autocomplete="off">
+            <span class="jjp-palette-badge">ESC para cerrar</span>
+          </div>
+          <div class="jjp-palette-list" id="jjpPaletteList"></div>
+          <div class="jjp-palette-footer">
+            <span><kbd>↑</kbd><kbd>↓</kbd> navegar</span>
+            <span><kbd>Enter</kbd> abrir</span>
+            <span><kbd>Esc</kbd> cerrar</span>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+
+      modal.addEventListener('click', e => {
+        if (e.target === modal) closePalette();
+      });
+
+      const inp = modal.querySelector('#jjpPaletteInput');
+      inp.addEventListener('input', renderPaletteItems);
+      window.addEventListener('keydown', onPaletteKey);
+    }
+
+    let flatItems = [];
+    let curCursor = 0;
+
+    function buildFlatItems() {
+      flatItems = [];
+      NAV.forEach(n => {
+        if (n.group && n.items) {
+          n.items.forEach(it => {
+            flatItems.push({
+              title: it.label,
+              icon: it.ico || '📄',
+              group: n.group,
+              href: absHref(it.href),
+              ext: !!it.ext
+            });
+          });
+        } else if (n.href && !n.section) {
+          flatItems.push({
+            title: n.label,
+            icon: n.ico || '📄',
+            group: 'Principal',
+            href: absHref(n.href),
+            ext: !!n.ext
+          });
+        }
+      });
+    }
+
+    function openPalette() {
+      buildFlatItems();
+      curCursor = 0;
+      modal.style.display = 'flex';
+      const inp = document.getElementById('jjpPaletteInput');
+      inp.value = '';
+      renderPaletteItems();
+      setTimeout(() => inp.focus(), 30);
+    }
+
+    function closePalette() {
+      modal.style.display = 'none';
+    }
+
+    window.__jjpOpenCommandPalette = openPalette;
+    window.__jjpCloseCommandPalette = closePalette;
+
+    function renderPaletteItems() {
+      const q = (document.getElementById('jjpPaletteInput')?.value || '').trim().toLowerCase();
+      const listEl = document.getElementById('jjpPaletteList');
+      const filtered = flatItems.filter(it => 
+        !q || it.title.toLowerCase().includes(q) || it.group.toLowerCase().includes(q)
+      );
+
+      if (!filtered.length) {
+        listEl.innerHTML = `<div class="jjp-palette-empty">No se encontraron módulos con "${escapeHTML(q)}"</div>`;
+        return;
+      }
+
+      if (curCursor >= filtered.length) curCursor = 0;
+      if (curCursor < 0) curCursor = 0;
+
+      listEl.innerHTML = filtered.map((it, idx) => `
+        <div class="jjp-palette-item ${idx === curCursor ? 'active' : ''}" data-idx="${idx}">
+          <span class="jjp-palette-item-icon">${it.icon}</span>
+          <div class="jjp-palette-item-text">
+            <div class="jjp-palette-item-title">${escapeHTML(it.title)}</div>
+            <div class="jjp-palette-item-sub">${escapeHTML(it.group)}</div>
+          </div>
+          <span class="jjp-palette-item-arrow">↵</span>
+        </div>
+      `).join('');
+
+      const items = listEl.querySelectorAll('.jjp-palette-item');
+      items.forEach(el => {
+        el.addEventListener('mouseenter', () => {
+          curCursor = Number(el.dataset.idx);
+          items.forEach((x, i) => x.classList.toggle('active', i === curCursor));
+        });
+        el.addEventListener('click', () => {
+          executeItem(filtered[curCursor]);
+        });
+      });
+
+      items[curCursor]?.scrollIntoView({ block: 'nearest' });
+    }
+
+    function executeItem(item) {
+      if (!item) return;
+      closePalette();
+      if (item.ext) window.open(item.href, '_blank');
+      else window.location.href = item.href;
+    }
+
+    function onPaletteKey(e) {
+      const q = (document.getElementById('jjpPaletteInput')?.value || '').trim().toLowerCase();
+      const filtered = flatItems.filter(it => 
+        !q || it.title.toLowerCase().includes(q) || it.group.toLowerCase().includes(q)
+      );
+
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closePalette();
+        return;
+      }
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (filtered.length) {
+          curCursor = (curCursor + 1) % filtered.length;
+          renderPaletteItems();
+        }
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (filtered.length) {
+          curCursor = (curCursor - 1 + filtered.length) % filtered.length;
+          renderPaletteItems();
+        }
+        return;
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (filtered.length && filtered[curCursor]) {
+          executeItem(filtered[curCursor]);
+        }
+        return;
+      }
+    }
+
+    window.addEventListener('keydown', e => {
+      if ((e.ctrlKey || e.metaKey || e.altKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        if (modal.style.display === 'flex') closePalette();
+        else openPalette();
+      }
+    });
+  }
+
+  function initModalScrollBridge() {
+    document.addEventListener('wheel', (e) => {
+      const overlay = e.target.closest('.modal-overlay.op, .modal-overlay.open');
+      if (!overlay) return;
+      const body = overlay.querySelector('.modal-body');
+      if (!body) return;
+      if (e.target.closest('.modal-hd') || e.target === overlay || e.target.closest('.modal-ft')) {
+        body.scrollTop += e.deltaY;
+      }
+    }, { passive: true });
   }
 
   async function applyRole() {
@@ -1088,6 +1400,9 @@
     injectCSS();
     renderNav();
     applyRole();
+    loadKeyboardNav();
+    initCommandPalette();
+    initModalScrollBridge();
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();

@@ -198,7 +198,11 @@ window.CampaignEditor = (() => {
   }
 
   function initModal() {
-    if (document.getElementById('campEditorOverlay')) return;
+    const existing = document.getElementById('campEditorOverlay');
+    if (existing) {
+      activeOverlay = existing;
+      return;
+    }
 
     const div = document.createElement('div');
     div.id = 'campEditorOverlay';
@@ -842,6 +846,8 @@ window.CampaignEditor = (() => {
   /* ---------------- APERTURA Y CONFIGURACIÓN INICIAL ---------------- */
   async function open(config = {}) {
     initModal();
+    if (!activeOverlay) activeOverlay = document.getElementById('campEditorOverlay');
+    if (activeOverlay) activeOverlay.classList.add('active');
     currentConfig = config;
     selectedProductOrCombo = null;
     generatedFlyerFile = null;
@@ -970,8 +976,12 @@ window.CampaignEditor = (() => {
       if (audSel) audSel.value = config.preAudience;
     }
 
-    await onAudienceChange();
-    updatePreview();
+    try {
+      await onAudienceChange();
+      updatePreview();
+    } catch (err) {
+      console.warn("Aviso sincronizando audiencia en CampaignEditor:", err);
+    }
     if (!activeOverlay) activeOverlay = document.getElementById('campEditorOverlay');
     if (activeOverlay) activeOverlay.classList.add('active');
   }

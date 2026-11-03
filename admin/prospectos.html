@@ -407,7 +407,16 @@
         </div>
 
         <!-- Controles de Filtro Específico y Búsqueda -->
-        <div style="display:grid;grid-template-columns:1fr 1.2fr;gap:14px;align-items:center">
+        <div style="display:grid;grid-template-columns:1.1fr 1fr 1.3fr;gap:14px;align-items:center">
+          <div>
+            <label class="fl" for="carteraSelect" style="font-size:11px;font-weight:700;margin-bottom:4px;color:var(--theme-text-muted, #64748b)">📁 Filtrar por Cartera B2B</label>
+            <select id="carteraSelect" class="fi" onchange="setCarteraFilter(this.value)" style="width:100%;height:38px;font-size:13px;border-radius:8px">
+              <option value="todos">🌐 Todas las Carteras (800 cuentas)</option>
+              <option value="cartera_chacao_ruices_2026">📍 Cartera Chacao / Ruices / Este (Nov 2026)</option>
+              <option value="importacion">📥 Cartera Base (Importación)</option>
+              <option value="google_sheets">📊 Cartera Google Sheets</option>
+            </select>
+          </div>
           <div>
             <label class="fl" for="sectorSelect" style="font-size:11px;font-weight:700;margin-bottom:4px;color:var(--theme-text-muted, #64748b)">Filtrar por Sector Específico (Todos los rubros)</label>
             <select id="sectorSelect" class="fi" onchange="setSectorFilter(this.value)" style="width:100%;height:38px;font-size:13px;border-radius:8px">

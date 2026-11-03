@@ -10,6 +10,7 @@
 let prospectsList = [];
 let filteredProspects = [];
 let currentSectorFilter = 'todos';
+let currentCarteraFilter = 'todos';
 let currentStatusFilter = 'todos';
 let activeProspectModal = null;
 let currentEditingProspectId = null;
@@ -202,6 +203,11 @@ function populateSectorSelect() {
   sel.value = currentSectorFilter;
 }
 
+function setCarteraFilter(cartera) {
+  currentCarteraFilter = cartera;
+  applyProspectFilters();
+}
+
 function setSectorFilter(sector) {
   currentSectorFilter = sector;
   if (sector !== 'todos') {
@@ -240,6 +246,15 @@ function applyProspectFilters() {
   const q = (document.getElementById('prospectSearchInput')?.value || '').trim().toLowerCase();
 
   filteredProspects = prospectsList.filter(p => {
+    // 0. Filtro por Cartera B2B
+    if (currentCarteraFilter !== 'todos') {
+      if (currentCarteraFilter === 'cartera_chacao_ruices_2026') {
+        const isFromCartera = (p.source === 'cartera_chacao_ruices_2026') || (p.notes && p.notes.includes('Cartera Chacao/Ruices'));
+        if (!isFromCartera) return false;
+      } else if (p.source !== currentCarteraFilter) {
+        return false;
+      }
+    }
     // 1. Filtro por macro-sector (si está activo)
     if (currentMacroSector !== 'todos' && !matchesMacroSector(p.sector, currentMacroSector)) {
       return false;
@@ -429,7 +444,10 @@ function renderProspectsTable() {
     return `
       <tr class="prospect-row ${hasAi ? 'row-analyzed' : ''}">
         <td>
-          <div style="font-weight:700;color:var(--dark);font-size:13.5px">${escapeHTML(p.company_name)}</div>
+          <div style="font-weight:700;color:var(--dark);font-size:13.5px">
+            ${escapeHTML(p.company_name)}
+            ${p.source === 'cartera_chacao_ruices_2026' ? '<span style="display:inline-block;margin-left:6px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;font-size:10px;font-weight:800;padding:1px 6px;border-radius:4px" title="Cartera Chacao / Ruices / Caracas Este">📍 Chacao/Ruices</span>' : ''}
+          </div>
           <div style="font-size:11.5px;color:#64748b;margin-top:2px">
             📍 ${escapeHTML(p.address || p.city || 'Caracas')}
           </div>

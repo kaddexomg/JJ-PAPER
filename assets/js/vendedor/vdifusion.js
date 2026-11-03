@@ -143,11 +143,15 @@ async function loadDContacts() {
   }
 
   // Si es Admin, cargar también la cartera de Prospectos B2B (jjp_prospects)
-  if (isAdm) {
+  if (isAdm || SELLER?.id) {
     try {
-      const { data: b2bProspects, error: pErr } = await sb.from('jjp_prospects')
-        .select('id,company_name,phone_1,phone_2,email,sector,status,contacted,last_contact_at,email_status,contact_name,contact_role,address,city,notes,ai_analysis,suggested_subject,custom_wa_body,custom_email_body')
+      let pQuery = sb.from('jjp_prospects')
+        .select('id,company_name,phone_1,phone_2,email,sector,status,contacted,last_contact_at,email_status,contact_name,contact_role,address,city,notes,ai_analysis,suggested_subject,custom_wa_body,custom_email_body,source,seller_id')
         .order('company_name');
+      if (!isAdm && SELLER?.id) {
+        pQuery = pQuery.or(`seller_id.eq.${SELLER.id},source.eq.gmail_destacado,source.eq.cartera_chacao_ruices_2026,status.eq.destacado`);
+      }
+      const { data: b2bProspects, error: pErr } = await pQuery;
 
       if (!pErr && Array.isArray(b2bProspects)) {
         const normProspects = b2bProspects.map(p => {
@@ -176,7 +180,9 @@ async function loadDContacts() {
             last_contact_at: p.last_contact_at || null,
             is_prospect_b2b: true,
             total_orders: 0,
-            tags: ['prospecto_b2b', p.sector ? p.sector.toLowerCase().replace(/\s+/g, '_') : 'otro'],
+            source: p.source || null,
+            cartera: p.source || null,
+            tags: ['prospecto_b2b', p.sector ? p.sector.toLowerCase().replace(/\s+/g, '_') : 'otro', ...(p.source ? [p.source] : [])],
             ai_analysis: p.ai_analysis || {},
             suggested_subject: p.suggested_subject || null,
             custom_email_body: p.custom_email_body || null,
@@ -1343,7 +1349,16 @@ function ncAudience() {
       : { isMobile: !/^(?:58|0)?(?:2\d{2})\d{7}$/.test((c.phone || '').replace(/\D/g, '')) && (c.phone || '').replace(/\D/g, '').length >= 10 };
     return pInfo.isMobile;
   });
-  if (aud === 'email_bounced') {
+  if (aud === 'cartera_chacao_ruices') {
+    list = list.filter(c => c.is_prospect_b2b && (
+      c.source === 'cartera_chacao_ruices_2026' ||
+      c.cartera === 'cartera_chacao_ruices_2026' ||
+      (Array.isArray(c.tags) && c.tags.includes('cartera_chacao_ruices_2026')) ||
+      (typeof c.notes === 'string' && (c.notes.includes('Chacao') || c.notes.includes('Ruices') || c.notes.includes('cartera_chacao_ruices_2026')))
+    ));
+  } else if (aud === 'prospectos_b2b') {
+    list = list.filter(c => Boolean(c.is_prospect_b2b));
+  } else if (aud === 'email_bounced') {
     list = list.filter(c => {
       const hasBounced = c.email_status === 'bounced' || c.email_status === 'bounced_hard' || c.email_status === 'bounced_soft';
       const noEmail = !c.email || !String(c.email).trim();

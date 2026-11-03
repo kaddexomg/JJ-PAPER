@@ -251,7 +251,8 @@ window.CampaignEditor = (() => {
                 <div class="ce-field-group">
                   <select class="ce-select" id="ceAudienceSelect" onchange="CampaignEditor.onAudienceChange()">
                     <option value="todos">🌐 Toda la Cartera (Clientes + Prospectos B2B)</option>
-                    <option value="prospectos_b2b" selected>🎯 Solo Cartera de Prospectos B2B (Leads Corporativos)</option>
+                    <option value="cartera_chacao_ruices" selected>📍 Cartera Chacao / Ruices / Este (Nov 2026)</option>
+                    <option value="prospectos_b2b">🎯 Toda la Cartera de Prospectos B2B (800+ Leads)</option>
                     <option value="con_cotizacion">📑 Clientes con Cotización Reciente (Hacer Seguimiento)</option>
                     <option value="solo_clientes">🏢 Solo Cartera Clientes Formales (jjp_customers)</option>
                     <option value="gmail_starred">⭐ Destacados en Gmail (Clientes Prioritarios)</option>
@@ -2187,6 +2188,14 @@ ${rawText}
         const noEmail = !c.email || !String(c.email).trim();
         return (hasBounced || noEmail);
       }
+      if (aud === 'cartera_chacao_ruices') {
+        return c.is_prospect_b2b && (
+          c.source === 'cartera_chacao_ruices_2026' ||
+          c.cartera === 'cartera_chacao_ruices_2026' ||
+          (Array.isArray(c.tags) && c.tags.includes('cartera_chacao_ruices_2026')) ||
+          (typeof c.notes === 'string' && (c.notes.includes('Chacao') || c.notes.includes('Ruices') || c.notes.includes('cartera_chacao_ruices_2026')))
+        );
+      }
       if (aud === 'prospectos_b2b') return Boolean(c.is_prospect_b2b);
       if (aud === 'solo_clientes') return !c.is_prospect_b2b;
       if (aud === 'gmail_starred') {
@@ -2328,7 +2337,8 @@ ${rawText}
               <span style="font-size:11px;font-weight:600;color:#64748b">Filtros rápidos:</span>
               <button type="button" class="ce-card-action-btn" onclick="CampaignEditor.setPickerQuickFilter('todos')">🌐 Todos</button>
               <button type="button" class="ce-card-action-btn" style="color:#b45309;background:#fef3c7;font-weight:700" onclick="CampaignEditor.setPickerQuickFilter('destacados_gmail')">⭐ Destacados Gmail</button>
-              <button type="button" class="ce-card-action-btn" style="color:#065f46;background:#ecfdf5;font-weight:700" onclick="CampaignEditor.setPickerQuickFilter('b2b')">🎯 Prospectos B2B</button>
+              <button type="button" class="ce-card-action-btn" style="color:#059669;background:#e6fcf5;font-weight:700;border:1.5px solid #10b981;" onclick="CampaignEditor.setPickerQuickFilter('chacao_ruices')">📍 Chacao/Ruices (Nov 2026)</button>
+              <button type="button" class="ce-card-action-btn" style="color:#065f46;background:#ecfdf5;font-weight:700" onclick="CampaignEditor.setPickerQuickFilter('b2b')">🎯 Todos los Prospectos B2B</button>
               <button type="button" class="ce-card-action-btn" onclick="CampaignEditor.setPickerQuickFilter('clientes')">👥 Solo Clientes</button>
               <button type="button" class="ce-card-action-btn" style="color:#0369a1;background:#f0f9ff;font-weight:700" onclick="CampaignEditor.setPickerQuickFilter('con_cotizacion')">📑 Con Cotización (&lt;30d)</button>
               <button type="button" class="ce-card-action-btn" style="color:#15803d;background:#f0fdf4;font-weight:700" onclick="CampaignEditor.setPickerQuickFilter('respondieron')">💬 Respondieron</button>
@@ -2403,6 +2413,17 @@ ${rawText}
         );
         if (!isStarred) return false;
       }
+      if (pickerQuickFilter === 'chacao_ruices') {
+        const isChacao = Boolean(
+          c.is_prospect_b2b && (
+            c.source === 'cartera_chacao_ruices_2026' ||
+            c.cartera === 'cartera_chacao_ruices_2026' ||
+            (Array.isArray(c.tags) && c.tags.includes('cartera_chacao_ruices_2026')) ||
+            (typeof c.notes === 'string' && (c.notes.includes('Chacao') || c.notes.includes('Ruices') || c.notes.includes('cartera_chacao_ruices_2026')))
+          )
+        );
+        if (!isChacao) return false;
+      }
       if (pickerQuickFilter === 'b2b' && !c.is_prospect_b2b) return false;
       if (pickerQuickFilter === 'clientes' && c.is_prospect_b2b) return false;
       if (pickerQuickFilter === 'con_cotizacion') {
@@ -2437,8 +2458,19 @@ ${rawText}
       const isB2B = Boolean(c.is_prospect_b2b);
       const isAnalyzed = Boolean(c._custom_message || c.custom_wa_body || c.custom_email_body || (c.ai_analysis && c.ai_analysis.dolor_operativo));
 
+      const isChacaoContact = Boolean(
+        c.is_prospect_b2b && (
+          c.source === 'cartera_chacao_ruices_2026' ||
+          c.cartera === 'cartera_chacao_ruices_2026' ||
+          (Array.isArray(c.tags) && c.tags.includes('cartera_chacao_ruices_2026')) ||
+          (typeof c.notes === 'string' && (c.notes.includes('Chacao') || c.notes.includes('Ruices') || c.notes.includes('cartera_chacao_ruices_2026')))
+        )
+      );
+      const chacaoBadge = isChacaoContact
+        ? `<span style="background:#d1fae5;color:#065f46;border:1px solid #10b981;font-size:10px;padding:2px 6px;border-radius:4px;font-weight:800;margin-left:6px">📍 Chacao/Ruices (Nov 2026)</span>`
+        : '';
       const b2bBadge = isB2B
-        ? `<span style="background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;font-size:10px;padding:2px 6px;border-radius:4px;font-weight:700;margin-left:6px">🎯 Prospecto B2B · ${escapeHTML(c.sector || 'Rubro')}</span>`
+        ? `<span style="background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;font-size:10px;padding:2px 6px;border-radius:4px;font-weight:700;margin-left:6px">🎯 Prospecto B2B · ${escapeHTML(c.sector || 'Rubro')}</span>${chacaoBadge}`
         : `<span style="background:#f1f5f9;color:#475569;font-size:10px;padding:2px 6px;border-radius:4px;font-weight:600;margin-left:6px">👥 Cliente Cartera</span>`;
 
       const recentQuote = (c.id && recentQuotesMap.get(c.id)) || (c.email && recentQuotesMap.get(String(c.email).toLowerCase().trim())) || (c.phone && recentQuotesMap.get(normPhoneKey(c.phone)));

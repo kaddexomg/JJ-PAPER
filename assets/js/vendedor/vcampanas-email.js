@@ -598,7 +598,7 @@ async function loadEcContacts() {
       .range(0, 1999);
 
     if (!isAdm && SELLER?.id) {
-      pQuery = pQuery.or(`seller_id.eq.${SELLER.id},source.eq.gmail_destacado,status.eq.destacado`);
+      pQuery = pQuery.or(`seller_id.eq.${SELLER.id},source.eq.gmail_destacado,source.eq.cartera_chacao_ruices_2026,status.eq.destacado`);
     }
 
     const { data: b2bProspects, error: pErr } = await pQuery;
@@ -624,8 +624,10 @@ async function loadEcContacts() {
             p.ai_analysis?.destacado_gmail ||
             (typeof p.notes === 'string' && p.notes.includes('Destacado en Gmail'))
           );
+          const isChacao = (p.source === 'cartera_chacao_ruices_2026');
           const pTags = ['prospecto_b2b', p.sector ? p.sector.toLowerCase().replace(/\s+/g, '_') : 'otro'];
           if (isStarred) pTags.push('destacado_gmail');
+          if (isChacao) pTags.push('cartera_chacao_ruices_2026');
 
           return {
             id: p.id,
@@ -648,6 +650,8 @@ async function loadEcContacts() {
             last_contact_at: p.last_contact_at || null,
             is_prospect_b2b: true,
             is_gmail_starred: isStarred,
+            source: p.source || null,
+            cartera: p.source || null,
             source: p.source || null,
             total_orders: 0,
             tags: pTags,
@@ -1511,7 +1515,16 @@ function ecAudience() {
   const inactDays = parseInt(APP.SETTINGS?.wa_react_days, 10) || 60;
   
   let list = ecContacts;
-  if (aud === 'inactivos') {
+  if (aud === 'cartera_chacao_ruices') {
+    list = list.filter(c => c.is_prospect_b2b && (
+      c.source === 'cartera_chacao_ruices_2026' ||
+      c.cartera === 'cartera_chacao_ruices_2026' ||
+      (Array.isArray(c.tags) && c.tags.includes('cartera_chacao_ruices_2026')) ||
+      (typeof c.notes === 'string' && (c.notes.includes('Chacao') || c.notes.includes('Ruices') || c.notes.includes('cartera_chacao_ruices_2026')))
+    ));
+  } else if (aud === 'prospectos_b2b') {
+    list = list.filter(c => Boolean(c.is_prospect_b2b));
+  } else if (aud === 'inactivos') {
     list = list.filter(c => c.total_orders > 0 && c.last_order_at &&
       (Date.now() - new Date(c.last_order_at).getTime()) > inactDays * 86400e3);
   } else if (aud === 'prospectos') {

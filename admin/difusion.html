@@ -277,6 +277,8 @@
         <div class="fg"><label class="fl" for="nc-aud">Audiencia</label>
           <select class="fi" id="nc-aud" onchange="ncRefresh()">
             <option value="todos">Toda la cartera</option>
+            <option value="cartera_chacao_ruices" selected>📍 Cartera Chacao / Ruices / Este (Nov 2026)</option>
+            <option value="prospectos_b2b">🎯 Solo prospectos B2B (800+ leads)</option>
             <option value="email_bounced">⚠️ Email rebotado / Sin email</option>
             <option value="inactivos">😴 Solo inactivos</option>
             <option value="prospectos">🆕 Solo prospectos (sin compras)</option>
@@ -408,7 +410,7 @@
 <script src="../assets/js/doc-engine.js?v=20260929_launch_sync_ok"></script>
 <script src="../assets/js/vendedor/vcommon.js?v=20260827_v1"></script>
 <script src="../assets/js/wa/wa-common.js"></script>
-<script src="../assets/js/vendedor/vdifusion.js?v=20261103_fix_catalog_url"></script>
+<script src="../assets/js/vendedor/vdifusion.js?v=20261103_cartera_chacao"></script>
 <script>
 document.addEventListener('DOMContentLoaded', async () => {
   const session = await requireAuth();
@@ -424,6 +426,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 </script>
   <script src="../assets/js/vendedor/product-picker.js"></script>
   <script src="../assets/js/gemini-client.js?v=20261027_corp_email_v3"></script>
-  <script src="../assets/js/vendedor/campaign-editor.js?v=20261103_fix_catalog_url"></script>
+  <script src="../assets/js/vendedor/campaign-editor.js?v=20261103_cartera_chacao"></script>
 </body>
 </html>

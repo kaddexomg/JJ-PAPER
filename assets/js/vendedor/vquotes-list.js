@@ -268,16 +268,9 @@ async function confirmVQuoteToMixnet(id) {
   try {
     await sb.from('jjp_mixnet_tasks').insert({
       action: 'inject_quote',
-      payload: { quote: q, quote_id: id },
+      payload: { quote: q, quote_id: id, target: 'supervisor' },
       status: 'pending'
     });
-  } catch (_) {}
-  try {
-    fetch('http://192.168.0.185:8790/api/inject-quote', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ quote: q })
-    }).catch(() => {});
   } catch (_) {}
 }
 

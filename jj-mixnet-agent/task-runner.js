@@ -9,7 +9,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { pollPendingTasks, updateTaskStatus } from './supabase-client.js';
+import { pollPendingTasks, updateTaskStatus, sbGet, sbPatch } from './supabase-client.js';
 import { syncCatalogFromMixnet } from './sync-catalog.js';
 import { syncSuppliersFromMixnet } from './sync-suppliers.js';
 import { importMixnetDocuments, exportPendingDocumentsToMixnet } from './sync-documents.js';
@@ -72,15 +72,41 @@ export async function processAgentTasks(compDir) {
         }
 
         case 'inject_quote': {
-          if (!payload.quote) throw new Error('Falta payload.quote para inyectar cotización.');
-          const res = injectQuoteToMixnet(compDir, payload.quote);
+          let quote = payload.quote;
+          if (!quote && payload.quote_id) {
+            const rows = await sbGet('jjp_quotes', `id=eq.${payload.quote_id}&limit=1`);
+            if (Array.isArray(rows) && rows.length > 0) quote = rows[0];
+          }
+          if (!quote) throw new Error('Falta payload.quote o payload.quote_id para inyectar cotización.');
+          const res = injectQuoteToMixnet(compDir, quote);
+          if (res && res.ok && (payload.quote_id || quote.id)) {
+            const qId = payload.quote_id || quote.id;
+            await sbPatch('jjp_quotes', `id=eq.${qId}`, {
+              quote_number: res.numcot,
+              status: 'confirmado_mixnet',
+              source: 'mixnet'
+            }).catch(e => log(`Aviso actualizando cotización en Supabase: ${e.message}`, 'WARN'));
+          }
           result = { ok: true, ...res };
           break;
         }
 
         case 'inject_order': {
-          if (!payload.order) throw new Error('Falta payload.order para inyectar pedido.');
-          const res = injectOrderToMixnet(compDir, payload.order);
+          let order = payload.order;
+          if (!order && payload.order_id) {
+            const rows = await sbGet('jjp_orders', `id=eq.${payload.order_id}&limit=1`);
+            if (Array.isArray(rows) && rows.length > 0) order = rows[0];
+          }
+          if (!order) throw new Error('Falta payload.order o payload.order_id para inyectar pedido.');
+          const res = injectOrderToMixnet(compDir, order);
+          if (res && res.ok && (payload.order_id || order.id)) {
+            const oId = payload.order_id || order.id;
+            await sbPatch('jjp_orders', `id=eq.${oId}`, {
+              order_number: res.numped,
+              status: 'confirmado_mixnet',
+              source: 'mixnet'
+            }).catch(e => log(`Aviso actualizando pedido en Supabase: ${e.message}`, 'WARN'));
+          }
           result = { ok: true, ...res };
           break;
         }

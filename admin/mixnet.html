@@ -876,7 +876,11 @@ Pulse "🩺 Diagnóstico Integral" para auditar en tiempo real la conexión con 
     aiConsole.textContent = `[${new Date().toLocaleTimeString()}] 🚀 Ordenando sincronización bidireccional inmediata...\n- Transmitiendo señal a Micro-API http://127.0.0.1:8790/sync-now\n- Notificando al VPS Soberano (jjp_server_control)...`;
 
     try {
-      fetch('http://127.0.0.1:8790/sync-now', { mode: 'no-cors' }).catch(() => {});
+      await sbClient.from('jjp_mixnet_tasks').insert({
+        action: 'sync_all',
+        payload: { target: 'supervisor' },
+        status: 'pending'
+      });
     } catch (_) {}
 
     await sbClient.from('jjp_server_control').update({
@@ -898,7 +902,7 @@ Pulse "🩺 Diagnóstico Integral" para auditar en tiempo real la conexión con 
     try {
       await sbClient.from('jjp_mixnet_tasks').insert({
         action: 'reindex_all',
-        payload: { target: 'all' },
+        payload: { target: 'supervisor' },
         status: 'pending'
       });
       aiConsole.textContent += `\n[${new Date().toLocaleTimeString()}] ✅ Tarea 'reindex_all' encolada. El Agente Guardián actualizará los árboles B-Tree en M:\\MIX11\\comp01 de inmediato.`;
@@ -921,7 +925,13 @@ Pulse "🩺 Diagnóstico Integral" para auditar en tiempo real la conexión con 
       command_at: new Date().toISOString()
     }).eq('id', 1);
 
-    try { fetch('http://127.0.0.1:8790/sync-now', { mode: 'no-cors' }).catch(() => {}); } catch (_) {}
+    try {
+      await sbClient.from('jjp_mixnet_tasks').insert({
+        action: 'inject_quote',
+        payload: { quote_id: id, target: 'supervisor' },
+        status: 'pending'
+      });
+    } catch (_) {}
 
     aiConsole.textContent += `\n[${new Date().toLocaleTimeString()}] ✅ Cotización despachada al Agente Guardián. Visible de inmediato en Clipper / GemixNet.`;
     setTimeout(loadRecentQuotes, 2500);
@@ -1113,7 +1123,7 @@ Pulse "🩺 Diagnóstico Integral" para auditar en tiempo real la conexión con 
     try {
       await sbClient.from('jjp_mixnet_tasks').insert({
         action: 'create_backup',
-        payload: { filename: snapName, dir: 'M:\\MIX11\\comp01\\backups', reason: 'manual_preventive_ui' },
+        payload: { filename: snapName, dir: 'M:\\MIX11\\comp01\\backups', reason: 'manual_preventive_ui', target: 'supervisor' },
         status: 'pending'
       });
       await sbClient.from('jjp_server_control').update({
@@ -1183,7 +1193,7 @@ Pulse "🩺 Diagnóstico Integral" para auditar en tiempo real la conexión con 
     try {
       await sbClient.from('jjp_mixnet_tasks').insert({
         action: 'rollback_snapshot',
-        payload: { snapshot: targetSnapshot, timestamp: new Date().toISOString() },
+        payload: { snapshot: targetSnapshot, timestamp: new Date().toISOString(), target: 'supervisor' },
         status: 'pending'
       });
       await sbClient.from('jjp_server_control').update({
@@ -1399,7 +1409,7 @@ Pulse "🩺 Diagnóstico Integral" para auditar en tiempo real la conexión con 
     try {
       await sbClient.from('jjp_mixnet_tasks').insert({
         action: 'reconcile_clients',
-        payload: { timestamp: new Date().toISOString(), total_records: allReconcileCustomers.length },
+        payload: { timestamp: new Date().toISOString(), total_records: allReconcileCustomers.length, target: 'supervisor' },
         status: 'pending'
       });
       await sbClient.from('jjp_server_control').update({

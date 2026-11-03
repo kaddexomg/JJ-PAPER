@@ -176,7 +176,7 @@ async function updateQuoteStatus(id, status) {
       const qRow = adminQuotes.find(x => x.id === id);
       await sb.from('jjp_mixnet_tasks').insert({
         action: 'inject_quote',
-        payload: { quote: qRow, quote_id: id },
+        payload: { quote: qRow, quote_id: id, target: 'supervisor' },
         status: 'pending'
       });
     } catch (_) {}

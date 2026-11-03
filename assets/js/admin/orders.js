@@ -216,6 +216,14 @@ function ordersGoPage(p) { ordersPage = p; renderOrdersTable(); }
 async function updateOrderStatus(id, status) {
   if (status === 'pendiente_mixnet' || status === 'confirmado_mixnet') {
     if (!confirm('¿Insertar este pedido en MixNet ERP?\n\nSe enviará al sistema administrativo de la tienda.')) { renderOrdersTable(); return; }
+    try {
+      const oRow = adminOrders.find(x => x.id === id);
+      await sb.from('jjp_mixnet_tasks').insert({
+        action: 'inject_order',
+        payload: { order: oRow, order_id: id, target: 'supervisor' },
+        status: 'pending'
+      });
+    } catch (_) {}
   }
   const { error } = await sb.from('jjp_orders').update({ status, updated_at: new Date().toISOString() }).eq('id', id);
   if (error) { showToast('Error actualizando estado', 'err'); return; }

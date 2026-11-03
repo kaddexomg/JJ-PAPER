@@ -1708,7 +1708,7 @@ function updateQuoteHeaderStatus() {
           Presupuesto PDF <kbd style="background:rgba(0,0,0,0.06);border:1px solid rgba(0,0,0,0.1);padding:1px 5px;border-radius:4px;font-size:11px">F10</kbd>
         </button>
         <button type="button" class="btn-p sm" onclick="confirmQuoteToMixnet(editingQuoteId, editingQuoteNumber)" title="Insertar esta cotización en MixNet ERP" style="background:#1d4ed8;color:#fff;border-radius:999px;font-weight:700;padding:6px 14px;display:inline-flex;align-items:center;gap:6px">
-          📥 Insertar en MixNet
+          📥 Insertar
         </button>
         <button type="button" class="btn-g sm" onclick="quoteReset()" title="Salir del modo edición (Alt+N)" style="border-radius:999px;color:#dc2626;border:1px solid rgba(220,38,38,0.3);padding:6px 14px;display:inline-flex;align-items:center;gap:6px">
           ✕ Cancelar <kbd style="background:rgba(220,38,38,0.08);border:1px solid rgba(220,38,38,0.2);padding:1px 5px;border-radius:4px;font-size:11px">Alt+N</kbd>
@@ -1906,6 +1906,13 @@ async function confirmQuoteToMixnet(id, quoteNumber) {
   if (!confirm(`¿Insertar ${label} en MixNet ERP?\n\nSe enviará al sistema administrativo de la tienda.`)) return;
   try {
     const res = await sb.from('jjp_quotes').update({ status: 'pendiente_mixnet' }).eq('id', id);
+    try {
+      await sb.from('jjp_mixnet_tasks').insert({
+        action: 'inject_quote',
+        payload: { quote_id: id, target: 'supervisor' },
+        status: 'pending'
+      });
+    } catch (_) {}
     if (res.error) throw res.error;
     if (typeof toast === 'function') toast('📥 Cotización insertada · se enviará a MixNet', 'success');
     else alert('Cotización confirmada para MixNet.');

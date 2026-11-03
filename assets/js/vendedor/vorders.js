@@ -105,6 +105,13 @@ async function confirmVOrderToMixnet(id) {
   try {
     const { error } = await sb.from('jjp_orders').update({ status: 'pendiente_mixnet', updated_at: new Date().toISOString() }).eq('id', id);
     if (error) throw error;
+    try {
+      await sb.from('jjp_mixnet_tasks').insert({
+        action: 'inject_order',
+        payload: { order: o, order_id: id, target: 'supervisor' },
+        status: 'pending'
+      });
+    } catch (_) {}
     o.status = 'confirmado_mixnet';
     if (typeof showToast === 'function') showToast('📥 Pedido insertado · se enviará a MixNet');
     renderVOrders();

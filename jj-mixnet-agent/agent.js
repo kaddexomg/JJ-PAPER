@@ -56,6 +56,12 @@ async function runScheduledSync() {
     syncStats.quotesImported += impRes.importedQuotes;
     syncStats.ordersImported += impRes.importedOrders;
 
+    // Exportar cotizaciones y pedidos pendientes marcados con "📥 Insertar" hacia MixNet
+    const expRes = await exportPendingDocumentsToMixnet(activeCompDir);
+    if (expRes && (expRes.exportedQuotes > 0 || expRes.exportedOrders > 0)) {
+      log(`[SYNC] Exportación hacia MixNet exitosa: ${expRes.exportedQuotes} cotizaciones, ${expRes.exportedOrders} pedidos.`);
+    }
+
     refreshCorrelatives();
     lastSyncTime = new Date().toISOString();
   } catch (err) {

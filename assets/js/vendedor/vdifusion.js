@@ -1061,20 +1061,26 @@ function deleteCampaignFromReport(id, name) {
 /* ---- Nueva campaña ---- */
 function newCampaign(preTplId = null) {
   setDTab('campanas');
-  if (window.CampaignEditor) {
-    window.CampaignEditor.open({
-      channel: 'whatsapp',
-      preTplId,
-      products: dProducts,
-      combos: dCombos,
-      templates: dTemplates,
-      contacts: dContacts,
-      seller: SELLER,
-      onLaunch: async (config) => {
-        await launchCampaignFromEditor(config);
-      }
-    });
-    return;
+  if (window.CampaignEditor && typeof window.CampaignEditor.open === 'function') {
+    try {
+      window.CampaignEditor.open({
+        channel: 'whatsapp',
+        preTplId,
+        products: dProducts,
+        combos: dCombos,
+        templates: dTemplates,
+        contacts: dContacts,
+        seller: (typeof SELLER !== 'undefined' ? SELLER : (window.SELLER || null)),
+        onLaunch: async (config) => {
+          await launchCampaignFromEditor(config);
+        }
+      });
+      return;
+    } catch (err) {
+      console.warn('Fallo en CampaignEditor WhatsApp, usando modal nativo de respaldo:', err);
+      openDModal('campModal');
+      return;
+    }
   }
   // Fallback modal tradicional si el editor no estuviera disponible
   openDModal('campModal');

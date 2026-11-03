@@ -1232,22 +1232,28 @@ function backToCampaigns() {
 /* ================== NUEVA CAMPAÑA ================== */
 function newEcCampaign(preTplId = null, defaultAudience = null) {
   setEcTab('campanas');
-  if (window.CampaignEditor) {
-    window.CampaignEditor.open({
-      channel: 'email',
-      preTplId,
-      preAudience: defaultAudience,
-      preMode: defaultAudience === 'gmail_starred' ? 'seguimiento_destacados' : 'presentacion_b2b',
-      products: ecProducts,
-      combos: ecCombos,
-      templates: ecTemplates,
-      contacts: ecContacts,
-      seller: SELLER,
-      onLaunch: async (config) => {
-        await launchEmailCampaignFromEditor(config);
-      }
-    });
-    return;
+  if (window.CampaignEditor && typeof window.CampaignEditor.open === 'function') {
+    try {
+      window.CampaignEditor.open({
+        channel: 'email',
+        preTplId,
+        preAudience: defaultAudience,
+        preMode: defaultAudience === 'gmail_starred' ? 'seguimiento_destacados' : 'presentacion_b2b',
+        products: ecProducts,
+        combos: ecCombos,
+        templates: ecTemplates,
+        contacts: ecContacts,
+        seller: (typeof SELLER !== 'undefined' ? SELLER : (window.SELLER || null)),
+        onLaunch: async (config) => {
+          await launchEmailCampaignFromEditor(config);
+        }
+      });
+      return;
+    } catch (err) {
+      console.warn('Fallo en CampaignEditor, usando modal nativo de respaldo:', err);
+      openEcModal('campModal');
+      return;
+    }
   }
   openEcModal('campModal');
 }

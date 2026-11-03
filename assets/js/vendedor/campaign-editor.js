@@ -3643,6 +3643,8 @@ ${rawText}
           ? `${publicBase}/catalogo`
           : (prodId ? `${publicBase}/producto?id=${encodeURIComponent(prodId)}` : (prodSku ? `${publicBase}/producto?sku=${encodeURIComponent(prodSku)}` : `${publicBase}/catalogo`)))
       : ((typeof sellerRefLink === 'function') ? (sellerRefLink() || `${publicBase}/catalogo`) : `${publicBase}/catalogo`);
+    const sCode = currentConfig?.seller?.mixnet_code || currentConfig?.seller?.ref_code || currentConfig?.seller?.code || '005';
+    const catalogUrl = (typeof sellerRefLink === 'function' && sellerRefLink()) ? sellerRefLink() : ('https://jjpaper.pages.dev/catalogo.html?ref=' + encodeURIComponent(sCode));
 
     // Priorizar el mensaje del cliente activo si existe, o el del input
     let rawText = currentCust?._custom_message || document.getElementById('ceMessageInput')?.value || '';

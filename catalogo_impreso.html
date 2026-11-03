@@ -1334,6 +1334,9 @@ body.hide-prices .dir-price-strip {
 
       <a href="admin/estudio-fotos.html" target="_blank" class="tb-btn" style="background:#7c3aed;color:#fff;text-decoration:none;box-shadow:0 2px 8px rgba(124,58,237,0.35)" title="Abrir interfaz de entrenamiento IA, verificación de fotos y categorías">🧠 Estudio IA de Fotos</a>
       <button type="button" class="tb-btn" style="background:#0284c7;color:#fff;box-shadow:0 2px 8px rgba(2,132,199,0.3)" onclick="openTestSheetModal()" title="Imprimir 1 hoja física de prueba para calibrar el giro dúplex">🧪 Hoja de Prueba</button>
+      <button type="button" class="tb-btn" style="background:#059669;color:#fff;font-weight:700;box-shadow:0 2px 8px rgba(5,150,105,0.35)" onclick="openResumePrintModal()" title="Asistente para continuar una impresión pausada o reanudar hojas específicas">
+        🎯 Reanudar Impresión
+      </button>
       <button type="button" class="tb-btn tb-btn-sub" onclick="openGuideModal()">
         📖 Guía Dúplex
       </button>
@@ -1357,6 +1360,10 @@ body.hide-prices .dir-price-strip {
         <select class="tb-select" id="batchSelect" onchange="onBatchSelectChange()" style="font-weight:700">
           <option value="all">📚 Todo el libro</option>
         </select>
+        <span id="customRangeWrap" style="display:none;align-items:center;gap:4px;font-size:12px;font-weight:700;color:#1e293b;background:#f8fafc;padding:2px 8px;border-radius:6px;border:1px solid #cbd5e1;">
+          Desde Hoja <input type="number" id="customMinSheet" value="1" min="1" style="width:52px;padding:3px;font-weight:700;border:1px solid #94a3b8;border-radius:4px" onchange="onBatchSelectChange()">
+          hasta <input type="number" id="customMaxSheet" value="46" min="1" style="width:52px;padding:3px;font-weight:700;border:1px solid #94a3b8;border-radius:4px" onchange="onBatchSelectChange()">
+        </span>
 
         <button type="button" class="tb-btn tb-btn-step1" onclick="printDuplexBatch('odd')">
           1️⃣ Paso 1: Imprimir FRENTES (Impares)
@@ -1376,6 +1383,67 @@ body.hide-prices .dir-price-strip {
     ⏳ Conectando al servidor y maquetando libro comercial...
   </div>
 </main>
+
+<!-- MODAL ASISTENTE PARA REANUDAR IMPRESIÓN INTERRUMPIDA -->
+<div class="guide-modal" id="resumePrintModal" role="dialog" aria-modal="true" onclick="if(event.target===this)closeResumePrintModal()">
+  <div class="modal-box" style="max-width:720px;border-color:#059669">
+    <div class="modal-header" style="border-bottom-color:#059669">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:24px">🎯</span>
+        <div>
+          <h3 style="color:#065f46;margin:0;font-size:17px">Asistente para Reanudar Impresión del Catálogo</h3>
+          <p style="font-size:12px;color:#64748b;margin:2px 0 0 0">Punto de pausa registrado: <strong>Hoja 46 (Pág. 91 frente impar impreso)</strong></p>
+        </div>
+      </div>
+      <button type="button" class="modal-close" onclick="closeResumePrintModal()" aria-label="Cerrar">✕</button>
+    </div>
+
+    <!-- PASO 1: COMPLETAR REVERSOS DE LAS 46 HOJAS YA IMPRESAS -->
+    <div class="guide-step" style="border-left:4px solid #059669;background:#f0fdf4;padding:14px;border-radius:8px;margin-top:14px">
+      <div class="step-num" style="background:#059669;color:#fff">A</div>
+      <div class="step-content" style="flex:1">
+        <h4 style="color:#065f46;margin-bottom:4px;font-size:15px">PASO 1: Imprimir Reversos de tus 46 hojas ya impresas (Págs 2 a 92)</h4>
+        <p style="font-size:12.5px;color:#334155;line-height:1.5;margin-bottom:8px">
+          Ya tienes el frente impreso de las primeras 46 hojas. <strong>No las descartes ni las reimprimas</strong>. Vamos a imprimir exactamente las caras traseras (reversos pares).
+        </p>
+        <div style="background:#ffffff;border:1px solid #bbf7d0;border-radius:6px;padding:10px;font-size:12px;color:#1e293b;margin-bottom:10px;line-height:1.6">
+          <strong>📋 Instrucción de colocación del papel en tu impresora:</strong><br>
+          1. Toma el fajo de las <strong>46 hojas impresas</strong>.<br>
+          2. Asegúrate de que la <strong>Página 1 esté arriba</strong> (si salieron al revés, ordénalas para que la Página 1 quede al frente).<br>
+          3. <strong>Gira el bloque sobre su eje largo</strong> (igual que pasar la hoja de un libro) para que la cara en blanco quede lista para recibir tinta.<br>
+          4. Colócalo de nuevo en la bandeja de entrada de tu impresora.
+        </div>
+        <button type="button" class="tb-btn tb-btn-step2" style="background:#059669;color:#fff;padding:10px 16px;font-size:13px;width:100%;justify-content:center" onclick="resumePrintAction('reverso_1_46')">
+          🖨️ Clic aquí para Imprimir REVERSOS de Hojas 1 a 46 (Páginas Pares 2 a 92)
+        </button>
+      </div>
+    </div>
+
+    <!-- PASO 2: IMPRIMIR EL RESTO DEL LIBRO -->
+    <div class="guide-step" style="border-left:4px solid #0284c7;background:#f0f9ff;padding:14px;border-radius:8px;margin-top:14px">
+      <div class="step-num" style="background:#0284c7;color:#fff">B</div>
+      <div class="step-content" style="flex:1">
+        <h4 style="color:#0369a1;margin-bottom:4px;font-size:15px">PASO 2: Imprimir el resto del catálogo (Hojas 47 en adelante)</h4>
+        <p style="font-size:12.5px;color:#334155;line-height:1.5;margin-bottom:8px">
+          Una vez completadas tus 46 hojas, coloca papel blanco nuevo en la bandeja de tu impresora y completa el libro en 2 etapas:
+        </p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <button type="button" class="tb-btn tb-btn-step1" style="padding:10px 12px;font-size:12px;justify-content:center;text-align:center" onclick="resumePrintAction('frentes_47_end')">
+            1️⃣ Imprimir Frentes Restantes<br><small style="font-weight:400">(Hojas 47 al final · Págs Impares 93+)</small>
+          </button>
+          <button type="button" class="tb-btn tb-btn-step2" style="padding:10px 12px;font-size:12px;justify-content:center;text-align:center" onclick="resumePrintAction('reversos_47_end')">
+            2️⃣ Imprimir Reversos Restantes<br><small style="font-weight:400">(Girar fajo · Págs Pares 94+)</small>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:16px;display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:11.5px;color:#64748b">💡 El sistema ajusta márgenes de lomo y contraluz automáticamente.</span>
+      <button type="button" class="tb-btn" style="background:#f1f5f9;color:#334155" onclick="closeResumePrintModal()">Cerrar</button>
+    </div>
+  </div>
+</div>
 
 <!-- MODAL GUÍA DE IMPRESIÓN DÚPLEX -->
 <div class="guide-modal" id="guideModal" role="dialog" aria-modal="true" onclick="if(event.target===this)closeGuideModal()">
@@ -2203,6 +2271,12 @@ body.hide-prices .dir-price-strip {
     const numBatches = Math.max(1, Math.ceil(TOTAL_SHEETS / BATCH_SHEET_SIZE));
 
     let html = `<option value="all">📚 Todo el Libro (${TOTAL_SHEETS} hojas = ${TOTAL_PAGES} págs)</option>`;
+    html += `<optgroup label="🎯 Reanudar Impresión Interrumpida">`;
+    html += `<option value="1-46">🔄 Reanudar: Hojas 1 a 46 (Imprimir Reversos pendientes · Págs 2–92)</option>`;
+    html += `<option value="47-${TOTAL_SHEETS}">⏩ Continuar: Hojas 47 a ${TOTAL_SHEETS} (Resto del catálogo · Págs 93–${TOTAL_PAGES})</option>`;
+    html += `<option value="custom">✏️ Rango Personalizado de Hojas...</option>`;
+    html += `</optgroup>`;
+    html += `<optgroup label="🧪 Pruebas y Tandas">`;
     html += `<option value="1-1">🧪 Hoja 1 de Prueba (Solo Págs 1 y 2 · Calibración Dúplex)</option>`;
     for (let b = 0; b < numBatches; b++) {
       const startS = b * BATCH_SHEET_SIZE + 1;
@@ -2225,17 +2299,37 @@ body.hide-prices .dir-price-strip {
   function onBatchSelectChange() {
     const val = document.getElementById('batchSelect')?.value || 'all';
     const sumEl = document.getElementById('batchSummaryText');
+    const customWrap = document.getElementById('customRangeWrap');
 
     let minS = 1, maxS = TOTAL_SHEETS;
-    if (val !== 'all' && val.includes('-')) {
-      const [a, b] = val.split('-').map(Number);
-      minS = a;
-      maxS = b;
+    if (val === 'custom') {
+      if (customWrap) customWrap.style.display = 'inline-flex';
+      const cMin = parseInt(document.getElementById('customMinSheet')?.value, 10) || 1;
+      const cMax = parseInt(document.getElementById('customMaxSheet')?.value, 10) || TOTAL_SHEETS;
+      minS = Math.max(1, Math.min(cMin, cMax));
+      maxS = Math.min(TOTAL_SHEETS, Math.max(cMin, cMax));
+    } else {
+      if (customWrap) customWrap.style.display = 'none';
+      if (val !== 'all' && val.includes('-')) {
+        const [a, b] = val.split('-').map(Number);
+        minS = a;
+        maxS = b;
+      }
     }
 
     const count = maxS - minS + 1;
+    const startP = (minS - 1) * 2 + 1;
+    const endP = maxS * 2;
     if (sumEl) {
-      sumEl.innerHTML = (val === '1-1') ? `🧪 Modo Prueba: <strong>1 hoja física Carta</strong> (Págs 1 y 2) · Imprime el frente (Pág 1), dale la vuelta por el eje largo e imprime el reverso (Pág 2).` : `Tanda seleccionada: <strong>${count} hojas Carta</strong> (${count * 2} págs) · Libro completo: <strong>${TOTAL_SHEETS} hojas</strong>`;
+      if (val === '1-1') {
+        sumEl.innerHTML = `🧪 Modo Prueba: <strong>1 hoja física Carta</strong> (Págs 1 y 2) · Imprime el frente (Pág 1), dale la vuelta por el eje largo e imprime el reverso (Pág 2).`;
+      } else if (val === '1-46') {
+        sumEl.innerHTML = `🔄 Reanudación Hojas 1 a 46: <strong>${count} hojas físicas</strong> (Págs ${startP}–${endP}) · <em>Listo para imprimir los reversos pares pendientes.</em>`;
+      } else if (val.startsWith('47-')) {
+        sumEl.innerHTML = `⏩ Resto del Catálogo: <strong>${count} hojas físicas</strong> (Págs ${startP}–${endP}) · <em>Hojas 47 en adelante.</em>`;
+      } else {
+        sumEl.innerHTML = `Tanda seleccionada: <strong>${count} hojas Carta</strong> (${count * 2} págs) · Libro completo: <strong>${TOTAL_SHEETS} hojas</strong>`;
+      }
     }
 
     // Filtrar en pantalla las hojas visibles según la tanda
@@ -2249,7 +2343,12 @@ body.hide-prices .dir-price-strip {
   function printDuplexBatch(sideMode) {
     const val = document.getElementById('batchSelect')?.value || 'all';
     let minS = 1, maxS = TOTAL_SHEETS;
-    if (val !== 'all' && val.includes('-')) {
+    if (val === 'custom') {
+      const cMin = parseInt(document.getElementById('customMinSheet')?.value, 10) || 1;
+      const cMax = parseInt(document.getElementById('customMaxSheet')?.value, 10) || TOTAL_SHEETS;
+      minS = Math.max(1, Math.min(cMin, cMax));
+      maxS = Math.min(TOTAL_SHEETS, Math.max(cMin, cMax));
+    } else if (val !== 'all' && val.includes('-')) {
       const [a, b] = val.split('-').map(Number);
       minS = a;
       maxS = b;
@@ -2357,6 +2456,38 @@ body.hide-prices .dir-price-strip {
       }, 500);
     }, 150);
   }
+  function openResumePrintModal() {
+    document.getElementById('resumePrintModal')?.classList.add('open');
+  }
+
+  function closeResumePrintModal() {
+    document.getElementById('resumePrintModal')?.classList.remove('open');
+  }
+
+  function resumePrintAction(mode) {
+    if (mode === 'reverso_1_46') {
+      const sel = document.getElementById('batchSelect');
+      if (sel) sel.value = '1-46';
+      onBatchSelectChange();
+      closeResumePrintModal();
+      printDuplexBatch('even');
+    } else if (mode === 'frentes_47_end') {
+      const totalS = TOTAL_SHEETS || 76;
+      const sel = document.getElementById('batchSelect');
+      if (sel) sel.value = `47-${totalS}`;
+      onBatchSelectChange();
+      closeResumePrintModal();
+      printDuplexBatch('odd');
+    } else if (mode === 'reversos_47_end') {
+      const totalS = TOTAL_SHEETS || 76;
+      const sel = document.getElementById('batchSelect');
+      if (sel) sel.value = `47-${totalS}`;
+      onBatchSelectChange();
+      closeResumePrintModal();
+      printDuplexBatch('even');
+    }
+  }
+
   function closeGuideModal() {
     document.getElementById('guideModal')?.classList.remove('open');
   }

@@ -1398,6 +1398,59 @@ body.hide-prices .dir-price-strip {
       <button type="button" class="modal-close" onclick="closeResumePrintModal()" aria-label="Cerrar">✕</button>
     </div>
 
+    <!-- EXPLICACIÓN CLARA DEL FLUJO INVERSO (76 hacia 46) -->
+    <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px;margin-top:10px;font-size:12.5px;color:#1e3a8a;line-height:1.5">
+      <strong>ℹ️ Diagnóstico de tu impresión (Orden Inverso detectado):</strong><br>
+      • Tu impresora comenzó desde la última hoja: <strong>Hoja 76 (Pág. 151)</strong> retrocediendo hasta la <strong>Hoja 46 (Pág. 91)</strong> donde se acabó el papel.<br>
+      • Ya tienes impresas <strong>31 hojas</strong> (Hojas 46 a 76 con sus frentes impares).<br>
+      • Te faltan los frentes de las <strong>Hojas 45 hacia atrás hasta la 1</strong> (Páginas 89 a la 1).
+    </div>
+
+    <!-- ETAPA 1: COMPLETAR LOS FRENTES QUE FALTAN (45 a 1) -->
+    <div class="guide-step" style="border-left:4px solid #0284c7;background:#f0f9ff;padding:14px;border-radius:8px;margin-top:12px">
+      <div class="step-num" style="background:#0284c7;color:#fff">1</div>
+      <div class="step-content" style="flex:1">
+        <h4 style="color:#0369a1;margin-bottom:4px;font-size:15px">ETAPA 1: Continuar los frentes que faltan (Hojas 45 hacia atrás hasta la 1)</h4>
+        <p style="font-size:12.5px;color:#334155;line-height:1.5;margin-bottom:8px">
+          Coloca <strong>45 hojas blancas nuevas</strong> en la bandeja de la impresora y presiona el botón. La impresora seguirá imprimiendo en reversa: Hoja 45 (Pág 89), Hoja 44 (Pág 87)... hasta terminar en la Hoja 1 (Pág 1).
+        </p>
+        <button type="button" class="tb-btn tb-btn-step1" style="background:#0284c7;color:#fff;padding:10px 16px;font-size:13px;width:100%;justify-content:center" onclick="resumePrintAction('frentes_1_45')">
+          1️⃣ Clic aquí: Imprimir Frentes Pendientes (Hojas 1 a 45 · Páginas 89 a la 1)
+        </button>
+      </div>
+    </div>
+
+    <!-- ETAPA 2: IMPRIMIR REVERSOS DE LAS 31 HOJAS QUE YA TIENES (46 a 76) -->
+    <div class="guide-step" style="border-left:4px solid #059669;background:#f0fdf4;padding:14px;border-radius:8px;margin-top:12px">
+      <div class="step-num" style="background:#059669;color:#fff">2</div>
+      <div class="step-content" style="flex:1">
+        <h4 style="color:#065f46;margin-bottom:4px;font-size:15px">ETAPA 2: Imprimir Reversos del fajo que ya tienes impreso (Hojas 46 a 76)</h4>
+        <p style="font-size:12.5px;color:#334155;line-height:1.5;margin-bottom:8px">
+          Toma las <strong>31 hojas ya impresas</strong> que tienes guardadas, gíralas sobre su eje largo (como pasando página) para exponer la cara blanca y mételas a la impresora.
+        </p>
+        <button type="button" class="tb-btn tb-btn-step2" style="background:#059669;color:#fff;padding:10px 16px;font-size:13px;width:100%;justify-content:center" onclick="resumePrintAction('reverso_46_76')">
+          2️⃣ Clic aquí: Imprimir Reversos de Hojas 46 a 76 (Páginas Pares 92 a 152)
+        </button>
+      </div>
+    </div>
+
+    <!-- ETAPA 3: IMPRIMIR REVERSOS DEL SEGUNDO BLOQUE (1 a 45) -->
+    <div class="guide-step" style="border-left:4px solid #d97706;background:#fffbeb;padding:14px;border-radius:8px;margin-top:12px">
+      <div class="step-num" style="background:#d97706;color:#fff">3</div>
+      <div class="step-content" style="flex:1">
+        <h4 style="color:#b45309;margin-bottom:4px;font-size:15px">ETAPA 3: Imprimir Reversos del bloque 1 a 45</h4>
+        <p style="font-size:12.5px;color:#334155;line-height:1.5;margin-bottom:8px">
+          Toma el fajo de 45 hojas impreso en la Etapa 1, gíralo sobre su eje largo e insértalo en la bandeja.
+        </p>
+        <button type="button" class="tb-btn" style="background:#d97706;color:#fff;padding:10px 16px;font-size:13px;width:100%;justify-content:center" onclick="resumePrintAction('reverso_1_45')">
+          3️⃣ Clic aquí: Imprimir Reversos de Hojas 1 a 45 (Páginas Pares 2 a 90)
+        </button>
+      </div>
+    </div>
+
+    <div style="margin-top:14px;border-top:1px solid #e2e8f0;padding-top:12px">
+      <h5 style="color:#475569;margin-bottom:6px;font-size:13px">Si empezaste desde la Hoja 1 hacia adelante:</h5>
+    </div>
     <!-- PASO 1: COMPLETAR REVERSOS DE LAS 46 HOJAS YA IMPRESAS -->
     <div class="guide-step" style="border-left:4px solid #059669;background:#f0fdf4;padding:14px;border-radius:8px;margin-top:14px">
       <div class="step-num" style="background:#059669;color:#fff">A</div>
@@ -2272,7 +2325,9 @@ body.hide-prices .dir-price-strip {
 
     let html = `<option value="all">📚 Todo el Libro (${TOTAL_SHEETS} hojas = ${TOTAL_PAGES} págs)</option>`;
     html += `<optgroup label="🎯 Reanudar Impresión Interrumpida">`;
-    html += `<option value="1-46">🔄 Reanudar: Hojas 1 a 46 (Imprimir Reversos pendientes · Págs 2–92)</option>`;
+    html += `<option value="1-45">⏩ Continuar Frentes Faltantes: Hojas 1 a 45 (Págs 1–90)</option>
+    <option value="46-${TOTAL_SHEETS}">🔄 Reversos de lo ya impreso: Hojas 46 a ${TOTAL_SHEETS} (Págs 91–${TOTAL_PAGES})</option>
+    <option value="1-46">🔄 Reanudar: Hojas 1 a 46 (Págs 1–92)</option>`;
     html += `<option value="47-${TOTAL_SHEETS}">⏩ Continuar: Hojas 47 a ${TOTAL_SHEETS} (Resto del catálogo · Págs 93–${TOTAL_PAGES})</option>`;
     html += `<option value="custom">✏️ Rango Personalizado de Hojas...</option>`;
     html += `</optgroup>`;
@@ -2465,7 +2520,26 @@ body.hide-prices .dir-price-strip {
   }
 
   function resumePrintAction(mode) {
-    if (mode === 'reverso_1_46') {
+    if (mode === 'frentes_1_45') {
+      const sel = document.getElementById('batchSelect');
+      if (sel) sel.value = '1-45';
+      onBatchSelectChange();
+      closeResumePrintModal();
+      printDuplexBatch('odd');
+    } else if (mode === 'reverso_46_76') {
+      const totalS = TOTAL_SHEETS || 76;
+      const sel = document.getElementById('batchSelect');
+      if (sel) sel.value = `46-${totalS}`;
+      onBatchSelectChange();
+      closeResumePrintModal();
+      printDuplexBatch('even');
+    } else if (mode === 'reverso_1_45') {
+      const sel = document.getElementById('batchSelect');
+      if (sel) sel.value = '1-45';
+      onBatchSelectChange();
+      closeResumePrintModal();
+      printDuplexBatch('even');
+    } else if (mode === 'reverso_1_46') {
       const sel = document.getElementById('batchSelect');
       if (sel) sel.value = '1-46';
       onBatchSelectChange();

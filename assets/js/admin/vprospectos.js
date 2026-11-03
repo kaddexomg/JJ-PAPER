@@ -1566,7 +1566,7 @@ function openProspectCampaignModal(channel = 'whatsapp') {
   // Filtrar prospectos elegibles según canal
   const eligible = filteredProspects.filter(p => {
     if (isEmail) {
-      return p.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email.trim());
+      return parseProspectEmails(p.email).length > 0;
     } else {
       const best = getBestMobilePhone(p);
       return isMobileNum(best);
@@ -1590,7 +1590,8 @@ function openProspectCampaignModal(channel = 'whatsapp') {
         phone: getBestMobilePhone(p),
         phone_1: p.phone_1,
         phone_2: p.phone_2,
-        email: p.email ? p.email.trim() : '',
+        email: parseProspectEmails(p.email)[0] || (p.email ? p.email.trim() : ''),
+        all_emails: parseProspectEmails(p.email),
         email_status: p.email_status || null,
         bounce_reason: p.bounce_reason || null,
         address: p.address || p.city || 'Caracas',

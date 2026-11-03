@@ -972,7 +972,8 @@ window.CampaignEditor = (() => {
 
     await onAudienceChange();
     updatePreview();
-    activeOverlay.classList.add('active');
+    if (!activeOverlay) activeOverlay = document.getElementById('campEditorOverlay');
+    if (activeOverlay) activeOverlay.classList.add('active');
   }
 
   function onTemplateChange() {

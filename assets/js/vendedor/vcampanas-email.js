@@ -1719,3 +1719,7 @@ document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
   document.querySelectorAll('.modal-overlay.op').forEach(m => closeEcModal(m.id));
 });
+
+// Bridge universal para llamadas a nueva campaña
+window.newCampaign = newEcCampaign;
+window.newEcCampaign = newEcCampaign;

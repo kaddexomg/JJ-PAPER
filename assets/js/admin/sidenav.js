@@ -1099,8 +1099,11 @@
     .jjp-palette-mask {
       position: fixed !important; inset: 0 !important; background: rgba(10, 16, 28, 0.72) !important;
       backdrop-filter: blur(8px) !important; -webkit-backdrop-filter: blur(8px) !important;
-      z-index: 1000000 !important; display: flex !important; align-items: flex-start !important; justify-content: center !important;
+      z-index: 1000000 !important; display: none !important; align-items: flex-start !important; justify-content: center !important;
       padding-top: 12vh !important;
+    }
+    .jjp-palette-mask.open {
+      display: flex !important;
     }
     .jjp-palette-box {
       width: 100% !important; max-width: 580px !important; background: #ffffff !important;
@@ -1201,7 +1204,7 @@
       pill.id = 'jjpCmdPill';
       pill.className = 'jjp-cmd-pill';
       pill.innerHTML = `<span>🧭 Ir a módulo...</span><kbd>Ctrl+K</kbd>`;
-      pill.onclick = openPalette;
+      pill.onclick = togglePalette;
       asideBrand.parentNode.insertBefore(pill, asideBrand.nextSibling);
     }
 
@@ -1228,7 +1231,7 @@
       `;
       document.body.appendChild(modal);
 
-      modal.addEventListener('click', e => {
+      modal.addEventListener('mousedown', e => {
         if (e.target === modal) closePalette();
       });
 
@@ -1268,19 +1271,29 @@
     function openPalette() {
       buildFlatItems();
       curCursor = 0;
-      modal.style.display = 'flex';
+      modal.classList.add('open');
       const inp = document.getElementById('jjpPaletteInput');
-      inp.value = '';
-      renderPaletteItems();
-      setTimeout(() => inp.focus(), 30);
+      if (inp) {
+        inp.value = '';
+        renderPaletteItems();
+        setTimeout(() => inp.focus(), 30);
+      }
     }
 
     function closePalette() {
-      modal.style.display = 'none';
+      modal.classList.remove('open');
+      const inp = document.getElementById('jjpPaletteInput');
+      if (inp) inp.blur();
+    }
+
+    function togglePalette() {
+      if (modal.classList.contains('open')) closePalette();
+      else openPalette();
     }
 
     window.__jjpOpenCommandPalette = openPalette;
     window.__jjpCloseCommandPalette = closePalette;
+    window.__jjpToggleCommandPalette = togglePalette;
 
     function renderPaletteItems() {
       const q = (document.getElementById('jjpPaletteInput')?.value || '').trim().toLowerCase();
@@ -1330,6 +1343,7 @@
     }
 
     function onPaletteKey(e) {
+      if (!modal || !modal.classList.contains('open')) return;
       const q = (document.getElementById('jjpPaletteInput')?.value || '').trim().toLowerCase();
       const filtered = flatItems.filter(it => 
         !q || it.title.toLowerCase().includes(q) || it.group.toLowerCase().includes(q)
@@ -1366,10 +1380,10 @@
     }
 
     window.addEventListener('keydown', e => {
+      if (e.defaultPrevented) return;
       if ((e.ctrlKey || e.metaKey || e.altKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
-        if (modal.style.display === 'flex') closePalette();
-        else openPalette();
+        togglePalette();
       }
     });
   }

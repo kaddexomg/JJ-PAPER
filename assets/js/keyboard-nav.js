@@ -48,7 +48,11 @@
 
   // Helper para saber si hay algún modal abierto en pantalla
   function getActiveModal() {
+    const pal = document.getElementById('jjpCmdPaletteModal');
+    if (pal && pal.classList.contains('open')) return pal;
+
     const selectors = [
+      '#jjUniversalKeyboardHelp',
       '.modal-overlay.op',
       '.modal-overlay.open',
       '.modal-overlay[style*="display: flex"]',
@@ -62,14 +66,13 @@
       '#posCustomItemModal:not([style*="display: none"])',
       '#quoteShortcutsHelpModal:not([style*="display: none"])',
       '#posShortcutsHelpModal:not([style*="display: none"])',
-      '#jjAiQuoteModal.op',
-      '#jjpCmdPaletteModal:not([style*="display: none"])'
+      '#jjAiQuoteModal.op'
     ];
 
     for (const sel of selectors) {
       try {
         const el = document.querySelector(sel);
-        if (el && el.offsetParent !== null) return el;
+        if (el && (el.offsetParent !== null || el.classList.contains('op') || el.classList.contains('open'))) return el;
       } catch (e) {}
     }
     return null;
@@ -194,15 +197,16 @@
                 <div style="display:flex;justify-content:space-between"><span>Buscar Producto</span><kbd class="jj-kbd">F2 / /</kbd></div>
                 <div style="display:flex;justify-content:space-between"><span>Buscar Cliente</span><kbd class="jj-kbd">F3</kbd></div>
                 <div style="display:flex;justify-content:space-between"><span>Historial / Descuento</span><kbd class="jj-kbd">F4</kbd></div>
-                <div style="display:flex;justify-content:space-between"><span>Enfocar Ticket</span><kbd class="jj-kbd">F6 / Alt+T</kbd></div>
+                <div style="display:flex;justify-content:space-between"><span>Modo Ticket</span><kbd class="jj-kbd">F6 / Alt+T</kbd></div>
                 <div style="display:flex;justify-content:space-between"><span>Vaciar / Convertir</span><kbd class="jj-kbd">F7</kbd></div>
-                <div style="display:flex;justify-content:space-between"><span>Ítem Libre / Cotiz</span><kbd class="jj-kbd">F8 / Alt+I</kbd></div>
+                <div style="display:flex;justify-content:space-between"><span>Pago / Cotizaciones</span><kbd class="jj-kbd">F8</kbd></div>
                 <div style="display:flex;justify-content:space-between"><span>Procesar / Emitir</span><kbd class="jj-kbd">F9 / Ctrl+↵</kbd></div>
-                <div style="display:flex;justify-content:space-between"><span>Presupuesto PDF</span><kbd class="jj-kbd">F10 / Ctrl+P</kbd></div>
+                <div style="display:flex;justify-content:space-between"><span>Presupuesto PDF / Fact</span><kbd class="jj-kbd">F10 / Ctrl+P</kbd></div>
                 <div style="display:flex;justify-content:space-between"><span>Cargar Cotización</span><kbd class="jj-kbd">F11</kbd></div>
+                <div style="display:flex;justify-content:space-between"><span>Ítem Libre / Flete</span><kbd class="jj-kbd">F12 / Alt+I</kbd></div>
                 <div style="display:flex;justify-content:space-between"><span>Vaciar Ticket</span><kbd class="jj-kbd">Alt+L / Alt+V</kbd></div>
                 <div style="display:flex;justify-content:space-between"><span>Nuevo / Limpiar</span><kbd class="jj-kbd">Alt + N</kbd></div>
-                <div style="display:flex;justify-content:space-between"><span>Cerrar / Volver</span><kbd class="jj-kbd">Esc</kbd></div>
+                <div style="display:flex;justify-content:space-between"><span>Salto Secuencial / Salir</span><kbd class="jj-kbd">Esc</kbd></div>
               </div>
             </div>
           </div>
@@ -258,6 +262,21 @@
     const activeEl = document.activeElement;
     const inInput = isEditableInput(activeEl);
 
+    // Detectar si el usuario está en modo navegación de renglones del ticket (sin foco en input)
+    const hasPosTicket = typeof posTicketCursor !== 'undefined' && posTicketCursor >= 0;
+    const hasQuoteTicket = typeof quoteTicketCursor !== 'undefined' && quoteTicketCursor >= 0;
+    const inTicketNavMode = (!inInput) && (hasPosTicket || hasQuoteTicket);
+
+    // Si está navegando el ticket con teclado, NO interceptar las teclas del ticket
+    // para que pos.js y vquotes.js ejecuten su manejo nativo (↑↓, +/-, A/B/C/D, Supr, Enter, Esc)
+    if (inTicketNavMode) {
+      const ticketKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', '+', '-', '=', 'Delete', 'Backspace', 'Enter', 'Escape', 'F2'];
+      const isLvl = ['a', 'b', 'c', 'd', 'A', 'B', 'C', 'D'].includes(e.key);
+      if (ticketKeys.includes(e.key) || isLvl) {
+        return;
+      }
+    }
+
     // A. Atajos de Cambio de Pantalla: Alt+1 ... Alt+6 (funcionan en cualquier momento)
     if (isAlt && !isCtrl && GLOBAL_ROUTES[e.key]) {
       e.preventDefault();
@@ -270,9 +289,13 @@
       return;
     }
 
-    // B. Paleta de Comandos: Ctrl+K
-    if (isCtrl && e.key.toLowerCase() === 'k') {
-      if (typeof window.__jjpOpenCommandPalette === 'function') {
+    // B. Paleta de Comandos: Ctrl+K o Alt+K
+    if ((isCtrl || isAlt) && e.key.toLowerCase() === 'k') {
+      if (typeof window.__jjpToggleCommandPalette === 'function') {
+        e.preventDefault();
+        window.__jjpToggleCommandPalette();
+        return;
+      } else if (typeof window.__jjpOpenCommandPalette === 'function') {
         e.preventDefault();
         window.__jjpOpenCommandPalette();
         return;
@@ -301,8 +324,12 @@
           activeModal.remove();
           return;
         }
-        if (typeof window.__jjpCloseCommandPalette === 'function' && activeModal.id === 'jjpCmdPaletteModal') {
-          window.__jjpCloseCommandPalette();
+        if (activeModal.id === 'jjpCmdPaletteModal') {
+          if (typeof window.__jjpCloseCommandPalette === 'function') {
+            window.__jjpCloseCommandPalette();
+          } else {
+            activeModal.classList.remove('open');
+          }
           return;
         }
         if (typeof closeQuoteSearchModal === 'function' && activeModal.id === 'quoteSearchModal') {
@@ -330,17 +357,38 @@
           activeModal.style.display = 'none';
           return;
         }
+        activeModal.style.display = 'none';
+        return;
       }
 
-      // Si no hay modal y el foco está en un input, desenfocar y volver al buscador
-      if (inInput) {
-        activeEl.blur();
-        const searchIn = document.getElementById('posSearch');
-        if (searchIn && activeEl !== searchIn) {
-          e.preventDefault();
-          searchIn.focus();
-          searchIn.select?.();
+      // Salto Secuencial Alternante Universal entre Buscador de Producto y Cliente
+      const prodSearch = document.getElementById('posSearch');
+      const cliSearch = document.getElementById('posCliSearch') || 
+                        document.getElementById('qCliSearch') || 
+                        document.getElementById('posCliName') || 
+                        document.getElementById('qCliName') || 
+                        document.getElementById('custInput');
+
+      if (prodSearch && cliSearch) {
+        e.preventDefault();
+        if (activeEl === prodSearch) {
+          cliSearch.focus();
+          cliSearch.select?.();
+        } else if (activeEl === cliSearch) {
+          prodSearch.focus();
+          prodSearch.select?.();
+        } else {
+          // Si está en otro campo o en ninguno, regresar a buscador de producto
+          if (inInput) activeEl.blur();
+          prodSearch.focus();
+          prodSearch.select?.();
         }
+        return;
+      } else if (prodSearch) {
+        e.preventDefault();
+        if (inInput) activeEl.blur();
+        prodSearch.focus();
+        prodSearch.select?.();
         return;
       }
     }
@@ -370,17 +418,23 @@
       return;
     }
 
-    // F6 o Alt+T: Enfocar primera fila del ticket
+    // F6 o Alt+T: Modo Teclado sobre el Ticket (activa navegación de renglones)
     if (e.key === 'F6' || (isAlt && e.key.toLowerCase() === 't')) {
       e.preventDefault();
+      if (typeof posFocusTicket === 'function') {
+        posFocusTicket();
+        return;
+      }
+      if (typeof quoteFocusTicket === 'function') {
+        quoteFocusTicket();
+        return;
+      }
       const firstInput = document.querySelector('input[data-ticket-field="qty"]') ||
                          document.querySelector('input[data-ticket-field="name"]') ||
                          document.querySelector('input[data-ticket-field="price"]');
       if (firstInput) {
         firstInput.focus();
         firstInput.select?.();
-      } else if (typeof quoteFocusTicket === 'function') {
-        quoteFocusTicket();
       }
       return;
     }
@@ -394,10 +448,17 @@
       return;
     }
 
-    // F11: Cargar desde Cotización (POS)
-    if (e.key === 'F11') {
+    // F11 o Alt+C: Cargar desde Cotización (POS) o Ver Cotizaciones (Cotizador)
+    if (e.key === 'F11' || (isAlt && e.key.toLowerCase() === 'c')) {
       e.preventDefault();
-      if (typeof posOpenLoadQuoteModal === 'function') posOpenLoadQuoteModal();
+      if (typeof posOpenLoadQuoteModal === 'function') {
+        posOpenLoadQuoteModal();
+        return;
+      }
+      if (typeof goToAllQuotes === 'function') {
+        goToAllQuotes();
+        return;
+      }
       return;
     }
 
@@ -433,8 +494,8 @@
       return;
     }
 
-    // F4: Abrir Historial / Descuento
-    if (e.key === 'F4') {
+    // F4 o Alt+O: Buscar Cotización (Cotizador) o Descuento (POS)
+    if (e.key === 'F4' || (isAlt && e.key.toLowerCase() === 'o')) {
       e.preventDefault();
       if (typeof openQuoteSearchModal === 'function') {
         openQuoteSearchModal();
@@ -448,7 +509,7 @@
       return;
     }
 
-    // F7: Vaciar Ticket (POS) o Convertir a POS (Cotizador)
+    // F7: Vaciar Ticket (POS) o Facturar en POS (Cotizador)
     if (e.key === 'F7') {
       e.preventDefault();
       if (typeof quoteConvertToPos === 'function') {
@@ -461,21 +522,35 @@
       return;
     }
 
-    // F8: Ir a Cotizaciones (Cotizador) o Ítem Libre (POS)
+    // F8: Método de Pago (POS) o Ver Cotizaciones (Cotizador)
     if (e.key === 'F8') {
       e.preventDefault();
+      const posMethod = document.getElementById('posMethod');
+      if (posMethod) {
+        posMethod.focus();
+        return;
+      }
       if (typeof goToAllQuotes === 'function') {
         goToAllQuotes();
-      } else if (typeof posOpenCustomItemModal === 'function') {
+        return;
+      }
+      if (typeof posOpenCustomItemModal === 'function') {
         posOpenCustomItemModal();
-      } else if (typeof openCustomItemModal === 'function') {
+        return;
+      }
+      if (typeof openCustomItemModal === 'function') {
         openCustomItemModal();
+        return;
       }
       return;
     }
 
     // F9 o Ctrl+Enter: Emitir Cotización o Procesar Venta
     if (e.key === 'F9' || (isCtrl && e.key === 'Enter')) {
+      // Si está en textarea (ej. WhatsApp o notas largas), permitir Enter normal si no es F9
+      if (inInput && activeEl.tagName === 'TEXTAREA' && e.key !== 'F9') {
+        return;
+      }
       e.preventDefault();
       if (typeof posSubmit === 'function') {
         posSubmit();

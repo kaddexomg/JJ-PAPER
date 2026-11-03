@@ -1208,38 +1208,6 @@
       asideBrand.parentNode.insertBefore(pill, asideBrand.nextSibling);
     }
 
-    let modal = document.getElementById('jjpCmdPaletteModal');
-    if (!modal) {
-      modal = document.createElement('div');
-      modal.id = 'jjpCmdPaletteModal';
-      modal.className = 'jjp-palette-mask';
-      modal.style.display = 'none';
-      modal.innerHTML = `
-        <div class="jjp-palette-box" role="dialog" aria-modal="true" aria-label="Navegador Rápido">
-          <div class="jjp-palette-input-wrap">
-            <span class="jjp-palette-search-icon">🔍</span>
-            <input type="text" id="jjpPaletteInput" placeholder="Escribe para ir a cualquier módulo (ej. pos, cotizador, clientes, whatsapp)..." autocomplete="off">
-            <span class="jjp-palette-badge">ESC para cerrar</span>
-          </div>
-          <div class="jjp-palette-list" id="jjpPaletteList"></div>
-          <div class="jjp-palette-footer">
-            <span><kbd>↑</kbd><kbd>↓</kbd> navegar</span>
-            <span><kbd>Enter</kbd> abrir</span>
-            <span><kbd>Esc</kbd> cerrar</span>
-          </div>
-        </div>
-      `;
-      document.body.appendChild(modal);
-
-      modal.addEventListener('mousedown', e => {
-        if (e.target === modal) closePalette();
-      });
-
-      const inp = modal.querySelector('#jjpPaletteInput');
-      inp.addEventListener('input', renderPaletteItems);
-      window.addEventListener('keydown', onPaletteKey);
-    }
-
     let flatItems = [];
     let curCursor = 0;
 
@@ -1271,7 +1239,40 @@
     function openPalette() {
       buildFlatItems();
       curCursor = 0;
-      modal.classList.add('open');
+      let modal = document.getElementById('jjpCmdPaletteModal');
+      if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'jjpCmdPaletteModal';
+        modal.className = 'jjp-palette-mask open';
+        modal.style.cssText = 'display:flex !important;';
+        modal.innerHTML = `
+          <div class="jjp-palette-box" role="dialog" aria-modal="true" aria-label="Navegador Rápido">
+            <div class="jjp-palette-input-wrap">
+              <span class="jjp-palette-search-icon">🔍</span>
+              <input type="text" id="jjpPaletteInput" placeholder="Escribe para ir a cualquier módulo (ej. pos, cotizador, clientes, whatsapp)..." autocomplete="off">
+              <span class="jjp-palette-badge">ESC para cerrar</span>
+            </div>
+            <div class="jjp-palette-list" id="jjpPaletteList"></div>
+            <div class="jjp-palette-footer">
+              <span><kbd>↑</kbd><kbd>↓</kbd> navegar</span>
+              <span><kbd>Enter</kbd> abrir</span>
+              <span><kbd>Esc</kbd> cerrar</span>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(modal);
+
+        modal.addEventListener('mousedown', e => {
+          if (e.target === modal) closePalette();
+        });
+
+        const inp = modal.querySelector('#jjpPaletteInput');
+        inp.addEventListener('input', renderPaletteItems);
+      } else {
+        modal.style.display = 'flex';
+        modal.classList.add('open');
+      }
+
       const inp = document.getElementById('jjpPaletteInput');
       if (inp) {
         inp.value = '';
@@ -1281,13 +1282,13 @@
     }
 
     function closePalette() {
-      modal.classList.remove('open');
-      const inp = document.getElementById('jjpPaletteInput');
-      if (inp) inp.blur();
+      const modal = document.getElementById('jjpCmdPaletteModal');
+      if (modal) modal.remove();
     }
 
     function togglePalette() {
-      if (modal.classList.contains('open')) closePalette();
+      const modal = document.getElementById('jjpCmdPaletteModal');
+      if (modal) closePalette();
       else openPalette();
     }
 
@@ -1296,8 +1297,11 @@
     window.__jjpToggleCommandPalette = togglePalette;
 
     function renderPaletteItems() {
+      const modal = document.getElementById('jjpCmdPaletteModal');
+      if (!modal) return;
       const q = (document.getElementById('jjpPaletteInput')?.value || '').trim().toLowerCase();
       const listEl = document.getElementById('jjpPaletteList');
+      if (!listEl) return;
       const filtered = flatItems.filter(it => 
         !q || it.title.toLowerCase().includes(q) || it.group.toLowerCase().includes(q)
       );
@@ -1343,7 +1347,8 @@
     }
 
     function onPaletteKey(e) {
-      if (!modal || !modal.classList.contains('open')) return;
+      const modal = document.getElementById('jjpCmdPaletteModal');
+      if (!modal) return;
       const q = (document.getElementById('jjpPaletteInput')?.value || '').trim().toLowerCase();
       const filtered = flatItems.filter(it => 
         !q || it.title.toLowerCase().includes(q) || it.group.toLowerCase().includes(q)
@@ -1378,6 +1383,8 @@
         return;
       }
     }
+
+    window.addEventListener('keydown', onPaletteKey);
 
     window.addEventListener('keydown', e => {
       if (e.defaultPrevented) return;

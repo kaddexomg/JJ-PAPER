@@ -24,3 +24,9 @@
 
 /assets/js/admin/auth.js
   Cache-Control: no-cache, no-store, must-revalidate
+
+/assets/js/admin/sidenav.js
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/assets/js/keyboard-nav.js
+  Cache-Control: no-cache, no-store, must-revalidate

@@ -49,7 +49,7 @@
   // Helper para saber si hay algún modal abierto en pantalla
   function getActiveModal() {
     const pal = document.getElementById('jjpCmdPaletteModal');
-    if (pal && pal.classList.contains('open')) return pal;
+    if (pal) return pal;
 
     const selectors = [
       '#jjUniversalKeyboardHelp',
@@ -328,7 +328,7 @@
           if (typeof window.__jjpCloseCommandPalette === 'function') {
             window.__jjpCloseCommandPalette();
           } else {
-            activeModal.classList.remove('open');
+            activeModal.remove();
           }
           return;
         }

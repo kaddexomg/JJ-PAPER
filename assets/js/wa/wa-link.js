@@ -118,13 +118,29 @@ function waRenderLink() {
   const st = WA_SESSION.status;
   let html = `<p class="wa-link-state">${WA_SESSION_LABEL[st] || escapeHTML(st || '')}</p>`;
 
+  // 1. Si la cuenta YA TIENE NÚMERO Y ESTÁ CONECTADA
   if (st === 'connected') {
     if (_waCountdownTimer) { clearInterval(_waCountdownTimer); _waCountdownTimer = null; }
     html += `
       <p class="wa-link-note">Cuenta vinculada: <strong>${escapeHTML(WA_SESSION.wa_name || '')}</strong>
       · ${escapeHTML(waPrettyPhone(WA_SESSION.wa_number || ''))}</p>
-      <p class="wa-link-note">Los chats se sincronizan mientras el wa-server esté corriendo en la PC de la tienda.</p>
+      <p class="wa-link-note">Sesión autenticada y permanente. Los chats se sincronizan en tiempo real.</p>
       <button class="btn-o" onclick="waLogout()">🔌 Desvincular esta cuenta</button>`;
+  } else if (WA_SESSION.wa_number && st !== 'logged_out') {
+    // 2. Si la cuenta YA ESTABA VINCULADA y sufre una reconexión temporal, PROHIBIDO MOSTRAR QR
+    if (_waCountdownTimer) { clearInterval(_waCountdownTimer); _waCountdownTimer = null; }
+    html += `
+      <p class="wa-link-note">Cuenta vinculada: <strong>${escapeHTML(WA_SESSION.wa_name || '')}</strong>
+      · ${escapeHTML(waPrettyPhone(WA_SESSION.wa_number || ''))}</p>
+      <div style="text-align:center;padding:16px 10px;">
+        <div style="width:28px;height:28px;margin:0 auto 10px;border:3px solid #e2e8f0;border-top-color:var(--gd);border-radius:50%;animation:waSpin 0.9s linear infinite;"></div>
+        <p style="font-weight:600;font-size:14px;color:var(--bk);">Reconectando con tu teléfono…</p>
+        <p class="wa-link-note" style="font-size:12px;margin-top:4px;">No necesitas escanear código QR. Tu enlace permanece guardado.</p>
+        <button class="btn-o btn-sm" onclick="waRequestConnect()" style="margin-top:10px;">🔄 Reintentar conexión</button>
+      </div>
+      <div style="text-align:center;margin-top:14px;">
+        <button class="btn-o" onclick="waLogout()">🔌 Desvincular esta cuenta</button>
+      </div>`;
   } else if (st === 'pending_qr' && WA_SESSION.qr_data) {
     const age = WA_SESSION.qr_updated_at 
       ? Math.max(0, Math.floor((Date.now() - new Date(WA_SESSION.qr_updated_at).getTime()) / 1000))
@@ -136,12 +152,12 @@ function waRenderLink() {
       html += `
         <div class="wa-qr-container">
           <div class="wa-qr-box expired">
-            <img class="wa-qr blurred" src="${WA_SESSION.qr_data}" alt="Código QR caducado">
+            <img class="wa-qr blurred" src="${WA_SESSION.qr_data}" alt="Rotando código QR">
             <div class="wa-qr-overlay">
-              <div class="wa-qr-overlay-icon">⌛</div>
-              <div class="wa-qr-overlay-title">Código QR caducado</div>
-              <div class="wa-qr-overlay-desc">El código expiró por seguridad. Haz clic abajo para generar uno nuevo.</div>
-              <button class="btn-p btn-sm" onclick="waRequestConnect()">🔄 Generar nuevo código QR</button>
+              <div class="wa-qr-overlay-icon" style="animation:waSpin 1.2s linear infinite;">🔄</div>
+              <div class="wa-qr-overlay-title">Rotando código QR…</div>
+              <div class="wa-qr-overlay-desc">Actualizando a un código QR fresco. Espera un momento.</div>
+              <button class="btn-p btn-sm" onclick="waRequestConnect()" style="margin-top:8px;">🔄 Renovar ahora</button>
             </div>
           </div>
         </div>`;

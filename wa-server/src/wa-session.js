@@ -225,7 +225,17 @@ export class WaSession {
     }
   }
 
-  hasCreds() { return fs.existsSync(path.join(this.dir, 'creds.json')); }
+  hasCreds() {
+    try {
+      const p = path.join(this.dir, 'creds.json');
+      if (!fs.existsSync(p)) return false;
+      const raw = fs.readFileSync(p, 'utf8');
+      const creds = JSON.parse(raw);
+      return !!(creds.account || creds.me || (creds.signalIdentities && creds.signalIdentities.length > 0));
+    } catch {
+      return false;
+    }
+  }
 
   async setSession(fields) {
     const { error } = await db.from('jjp_wa_sessions')
@@ -237,7 +247,7 @@ export class WaSession {
     // Defensa extra: si otro flujo (panel, vigilante, barrido) ya está
     // arrancando hace menos de 90 s, no abrir un segundo socket con el mismo
     // auth — DOS sockets = WhatsApp expulsa a ambos y el QR se regenera.
-    if (this.startingSince && Date.now() - this.startingSince < 90_000) {
+    if (this.startingSince && Date.now() - this.startingSince < 8_000) {
       log.warn({ profile: this.profileId }, 'arranque ya en curso — ignoro el nuevo start()');
       return;
     }
@@ -245,8 +255,12 @@ export class WaSession {
     this.pairingRequested = false;
     if (this.reconnectTimer) { clearTimeout(this.reconnectTimer); this.reconnectTimer = null; }
     this.lastEventAt = Date.now();
-    this.startingSince = Date.now();   // se limpia al abrir o al cerrar la conexión
-    await this.setSession({ status: 'starting', last_error: null, qr_data: null });
+    this.startingSince = Date.now();
+    if (this.hasCreds()) {
+      await this.setSession({ status: 'reconnecting', last_error: null, qr_data: null, pairing_code: null });
+    } else {
+      await this.setSession({ status: 'starting', last_error: null });
+    }
     try {
       this.cleanCorruptedSessions();
       const { state, saveCreds } = await useMultiFileAuthState(this.dir);
@@ -356,6 +370,11 @@ export class WaSession {
     const { connection, lastDisconnect, qr } = update;
 
     if (qr) {
+      // SI YA TIENE CREDENCIALES VÁLIDAS, PROHIBIDO EMITIR O MOSTRAR QR
+      if (this.hasCreds()) {
+        log.warn({ profile: this.profileId }, 'QR recibido en sesión ya autenticada — ignorado para no romper el enlace del teléfono');
+        return;
+      }
       this.qrTimeouts = 0;
       if (this.pairingPhone && !state.creds.registered && !this.pairingRequested) {
         // Alternativa al QR: código de emparejamiento de 8 caracteres
@@ -401,10 +420,10 @@ export class WaSession {
       this.startingSince = 0;
       const code = lastDisconnect?.error?.output?.statusCode;
       if (code === DisconnectReason.loggedOut) {
-        log.warn({ profile: this.profileId }, 'sesión cerrada desde el teléfono (logged out)');
+        log.warn({ profile: this.profileId }, 'sesión cerrada por WhatsApp (logged out)');
         this.stopped = true;
-        fs.rmSync(this.dir, { recursive: true, force: true });
-        await this.setSession({ status: 'logged_out', qr_data: null, pairing_code: null, wa_number: null, wa_name: null });
+        // NUNCA borrar credenciales a ciegas con rmSync. Marcar en BD para que el usuario decida.
+        await this.setSession({ status: 'logged_out', qr_data: null, pairing_code: null });
         return;
       }
       if (this.stopped) return;
@@ -413,9 +432,9 @@ export class WaSession {
       // reiniciar de INMEDIATO (1s) para fijar el cifrado con las credenciales nuevas.
       // Si se retrasa por backoff, WhatsApp en el teléfono cancela por timeout.
       if (code === DisconnectReason.restartRequired) {
-        log.info({ profile: this.profileId, code }, 'Código 515 restartRequired tras escanear QR — reconexión inmediata (1s) para consolidar sesión ✅');
+        log.info({ profile: this.profileId, code }, 'Código 515 restartRequired tras escanear QR — consolidando sesión fija en 1s ✅');
         this.reconnectMs = 1000;
-        await this.setSession({ status: 'starting', last_error: null, qr_data: null });
+        await this.setSession({ status: 'reconnecting', last_error: null, qr_data: null, pairing_code: null });
         this.scheduleReconnect();
         return;
       }
@@ -423,21 +442,20 @@ export class WaSession {
       // Código 408 (timedOut) mientras se esperaba escaneo del QR (sin credenciales previas)
       if (code === DisconnectReason.timedOut && !this.hasCreds()) {
         this.qrTimeouts = (this.qrTimeouts || 0) + 1;
-        if (this.qrTimeouts <= 4) {
-          log.info({ profile: this.profileId, intento: this.qrTimeouts }, 'QR expiró sin escanear. Regenerando nuevo código QR de inmediato…');
+        if (this.qrTimeouts <= 6) {
+          log.info({ profile: this.profileId, intento: this.qrTimeouts }, 'Rotando código QR de inmediato…');
           this.reconnectMs = 1000;
-          await this.setSession({ status: 'starting', qr_data: null });
           this.scheduleReconnect();
           return;
         } else {
-          log.warn({ profile: this.profileId }, 'QR expiró tras múltiples intentos sin escaneo. Pausando reconexión para no ciclar.');
+          log.warn({ profile: this.profileId }, 'QR expiró tras múltiples intentos sin escaneo');
           this.stopped = true;
           this.qrTimeouts = 0;
           await this.setSession({
             status: 'disconnected',
             qr_data: null,
             pairing_code: null,
-            last_error: 'El código QR caducó por inactividad. Haz clic en "Generar código QR" para solicitar uno nuevo.'
+            last_error: 'El código QR expiró por inactividad. Pulsa "Generar código QR" cuando estés listo.'
           });
           return;
         }
@@ -445,7 +463,7 @@ export class WaSession {
 
       const isExpectedRestart = code === DisconnectReason.connectionClosed
                              || code === DisconnectReason.timedOut;
-      const uiStatus = isExpectedRestart ? 'starting' : 'disconnected';
+      const uiStatus = this.hasCreds() ? 'reconnecting' : (isExpectedRestart ? 'starting' : 'disconnected');
       await this.setSession({ status: uiStatus, last_error: isExpectedRestart ? null : (lastDisconnect?.error?.message || null) });
       if (isExpectedRestart) {
         log.info({ profile: this.profileId, code }, 'reconexión esperada / transitoria — reconectando…');

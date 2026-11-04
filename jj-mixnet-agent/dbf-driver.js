@@ -146,6 +146,15 @@ function buildRecordBuffer(struct, values) {
       strVal = f.dec > 0 ? num.toFixed(f.dec) : String(Math.round(num));
       strVal = strVal.padStart(f.len, ' ');
     } else {
+      // Sanitización estricta para dBase III / Clipper:
+      // Eliminar tildes, saltos de línea (CR/LF) y caracteres no ASCII que desfasen bytes o corrompan cabeceras
+      strVal = strVal
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // Quitar acentos/diacríticos (ej. á->a, ñ->n)
+        .replace(/[\r\n\t]/g, ' ')                        // Quitar saltos de línea y tabuladores (crítico: 0x0D en Clipper indica fin de header)
+        .replace(/[^\x20-\x7E]/g, ' ')                    // Solo caracteres ASCII imprimibles
+        .replace(/\s+/g, ' ')                             // Colapsar espacios repetidos
+        .trim();
+
       strVal = strVal.slice(0, f.len).padEnd(f.len, ' ');
     }
 

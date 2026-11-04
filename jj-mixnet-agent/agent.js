@@ -271,7 +271,8 @@ async function main() {
   // 1. Iniciar Micro-API local
   startMicroApi();
 
-  // 2. Bucle de Tareas Agénticas (cada 3 segundos)
+  // 2. Bucle de Tareas Agénticas OpenCode (cada 3 segundos)
+  // Solo actúa cuando se solicita una tarea explícita en jjp_mixnet_tasks (Cero impacto en reposo)
   setInterval(async () => {
     if (activeCompDir) {
       await processAgentTasks(activeCompDir);
@@ -281,21 +282,24 @@ async function main() {
     }
   }, 3000);
 
-  // 3. Bucle de Sincronización de Documentos (cada 10 segundos)
+  // 3. Sincronización diaria matutina de catálogo e inventario (06:00 AM)
+  // Cero sondeos destructivos durante el horario comercial.
+  // Durante el día, solo se sincroniza bajo demanda explícita (comando OpenCode 'sync_catalog' o botón web).
+  let lastDailySyncDate = null;
   setInterval(async () => {
-    if (activeCompDir) {
-      await runScheduledSync();
-    }
-  }, 10000);
-
-  // 4. Bucle de Sincronización de Catálogo e Inventario (cada 60 segundos)
-  setInterval(async () => {
-    if (activeCompDir) {
+    if (!activeCompDir) return;
+    const now = new Date();
+    const todayStr = now.toISOString().slice(0, 10);
+    // Ejecutar a las 6:00 AM hora local antes de abrir tienda
+    if (now.getHours() === 6 && lastDailySyncDate !== todayStr) {
+      lastDailySyncDate = todayStr;
+      log('[CATÁLOGO] Ejecutando sincronización matutina programada de catálogo (06:00 AM)...');
       await runScheduledCatalogSync();
     }
   }, 60000);
 
-  // 5. Bucle de Heartbeat hacia Supabase (cada 15 segundos)
+  // 4. Bucle de Heartbeat y Telemetría hacia Supabase (cada 15 segundos)
+  // Solo lee pasivamente correlativos y confirma que el nodo tienda está vivo
   setInterval(async () => {
     refreshCorrelatives();
     await reportAgentHeartbeat({
@@ -308,12 +312,7 @@ async function main() {
     });
   }, 15000);
 
-  // Ejecución inicial inmediata (documentos prioritarios)
-  if (activeCompDir) {
-    await runScheduledSync();
-  }
-
-  log('Agente MixNet iniciado y en modo guardián autónomo 24/7.');
+  log('Agente MixNet iniciado y en modo guardián autónomo 24/7 (Sincronización destructiva en caliente deshabilitada).');
 }
 
 // Prevención de caídas (Self-Healing)

@@ -81,6 +81,19 @@ export async function processAgentTasks(compDir) {
           if (!quote.codven && quote.seller_id) {
             quote.codven = PROFILE_ID_TO_CODVEN[quote.seller_id] || '';
           }
+          if (!quote.codven) {
+            log(`[SEGURIDAD NÓMINA] Cotización #${quote.quote_number || quote.id} no posee vendedor asignado. Cero auto-adjudicación a admin.`, 'WARN');
+          } else {
+            log(`[SEGURIDAD NÓMINA] Inyectando cotización #${quote.quote_number || quote.id} estrictamente bajo CODVEN '${quote.codven}'.`);
+          }
+
+          // Snapshot preventivo obligatorio antes de tocar tablas de cotizaciones
+          try {
+            createBackup(compDir, `pre_quote_${quote.quote_number || 'new'}`);
+          } catch (bErr) {
+            log(`Aviso generando backup preventivo: ${bErr.message}`, 'WARN');
+          }
+
           const res = injectQuoteToMixnet(compDir, quote);
           if (res && res.ok && (payload.quote_id || quote.id)) {
             const qId = payload.quote_id || quote.id;
@@ -104,6 +117,19 @@ export async function processAgentTasks(compDir) {
           if (!order.codven && order.seller_id) {
             order.codven = PROFILE_ID_TO_CODVEN[order.seller_id] || '';
           }
+          if (!order.codven) {
+            log(`[SEGURIDAD NÓMINA] Pedido #${order.order_number || order.id} no posee vendedor asignado. Cero auto-adjudicación a admin.`, 'WARN');
+          } else {
+            log(`[SEGURIDAD NÓMINA] Inyectando pedido #${order.order_number || order.id} estrictamente bajo CODVEN '${order.codven}'.`);
+          }
+
+          // Snapshot preventivo obligatorio antes de tocar tablas de pedidos
+          try {
+            createBackup(compDir, `pre_order_${order.order_number || 'new'}`);
+          } catch (bErr) {
+            log(`Aviso generando backup preventivo: ${bErr.message}`, 'WARN');
+          }
+
           const res = injectOrderToMixnet(compDir, order);
           if (res && res.ok && (payload.order_id || order.id)) {
             const oId = payload.order_id || order.id;

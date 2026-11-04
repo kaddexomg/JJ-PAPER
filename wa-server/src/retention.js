@@ -90,11 +90,11 @@ async function trimOldHtml() {
 // 4) Archivos huérfanos en jjp-email-media (sin fila de correo que los referencie)
 async function purgeOrphanEmailFiles() {
   const { data: files, error } = await db.storage.from('jjp-email-media').list('', { limit: 1000 });
-  if (error || !files) return;
+  if (error || !Array.isArray(files)) return;
   // NOTA: list('') solo devuelve la raíz; el layout real es owner/emailId/archivo.
   // Este barrido superficial cubre archivos sueltos en raíz. El profundo lo hace
   // audit-storage.js bajo demanda. Aquí evitamos falsos positivos por seguridad.
-  const rootFiles = files.filter(f => f.id !== null).map(f => f.name);
+  const rootFiles = files.filter(f => f && f.id !== null).map(f => f.name).filter(Boolean);
   if (!rootFiles.length) return;
   // sin referencia conocida en raíz → borrar
   await removeFromBucket('jjp-email-media', rootFiles);
@@ -111,7 +111,7 @@ async function purgeWAMessages() {
     const { data: mediaRows, error: mErr } = await db.from('jjp_wa_messages')
       .select('id, media_path')
       .not('media_path', 'is', null)
-      .or(`wa_timestamp.lt.${cutoff},and(wa_timestamp.is.null,created_at.lt.${cutoff})`)
+      .lt('created_at', cutoff)
       .limit(300);
     if (!mErr && mediaRows?.length) {
       const paths = mediaRows.map(r => r.media_path).filter(Boolean);
@@ -125,7 +125,7 @@ async function purgeWAMessages() {
   try {
     const { data: deleted, error: dErr } = await db.from('jjp_wa_messages')
       .delete()
-      .or(`wa_timestamp.lt.${cutoff},and(wa_timestamp.is.null,created_at.lt.${cutoff})`)
+      .lt('created_at', cutoff)
       .select('id');
     if (dErr) {
       log.warn({ err: dErr.message }, 'retención: delete mensajes WA falló');

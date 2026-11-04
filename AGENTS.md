@@ -183,13 +183,15 @@ AGENTS.md                ← Contexto maestro y reglas inviolables para agentes 
 - **Manual y Runbook Completo**: Consultar `docs/RUNBOOK_SUPERVISOR_PC_PUENTE.md`.
 - **Topología de Red**:
   - **PC Supervisor**: Situada en la tienda física, comparte `M:\MIX11\comp01` con las 5 computadoras de los vendedores de la tienda.
-  - **Proceso Maestro en Supervisor**: `jj-mixnet-agent\START-AGENT.bat` (`node agent.js`). Ejecuta bucle de tareas (3s), sincronización de documentos import/export (10s), catálogo (60s) y heartbeat (15s).
+  - **Proceso Maestro en Supervisor**: `jj-mixnet-agent\START-AGENT.bat` (`node agent.js`). Modo Centinela Silencioso 24/7. Ejecuta bucle de tareas OpenCode (3s), heartbeat pasivo (15s) y sincronización de catálogo matutina (06:00 AM o bajo demanda). Erradicados los bucles ciegos agresivos de 10s y 60s en caliente para prevenir bloqueos de SMB y caídas de MixNet.
   - **VPS Soberano**: PostgreSQL 16 expuesto vía PostgREST con bus `jjp_mixnet_tasks`.
   - **Dispositivos Web / Laptop**: Se comunican estrictamente con el VPS. Prohibido intentar llamadas HTTP directas a IPs locales (`127.0.0.1` o `192.168.0.185`) que son bloqueadas por Mixed Content.
 - **Inserción Nativa en MixNet (Regla del Botón `📥 Insertar`)**:
+  - **Sanitización Estricta Clipper (dBase III)**: Normalización NFD para erradicar diacríticos (`á->a`, `ñ->n`), purga obligatoria de caracteres `\r`, `\n` y `\t` (que rompen delimitadores y actúan como terminadores de cabecera `0x0D` en Clipper), restricción a ASCII imprimible estándar (`0x20` a `0x7E`) y relleno fijo por campo en `latin1` para evitar desfase de columnas ("apellidos por números").
+  - **Snapshots Preventivos Automáticos**: Toda inyección de cotización o pedido genera automáticamente un respaldo sellado `.BAK` en `comp01/backups/` antes de escribir registros.
   - **Cero Marcas**: Comentarios en `COMEN1` limpios (sin firmas `[MixNet]` ni prefijos).
   - **Clientes**: Código real de `MXCTACLI`, o código canónico `000-001` (`CUENTA RECUPERADA`) si no tiene ficha previa.
   - **Artículos Libres**: SKU oficial `IN-OS` (servicios).
-  - **Nómina `CODVEN`**: 002 Luis, 004/006 Yovanni, 008 Marianela, 014 Andreina, 005 Keyder.
-  - **Índices Clipper**: Actualización inmediata de los 5 índices `.NTX` para que las 5 computadoras de la tienda vean los documentos al instante sin bloqueos.
+  - **Nómina `CODVEN` Sagrada**: 002 Luis, 004/006 Yovanni, 008 Marianela, 014 Andreina, 005 Keyder. Si un documento no posee vendedor asignado, se deja en blanco; queda TERMINANTEMENTE PROHIBIDO auto-adjudicarlo por defecto a Keyder (`005`) o a roles administrativos.
+  - **Índices Clipper**: Actualización inmediata de los 5 índices `.NTX` para que las 5 computadoras de la tienda vean los documentos al instante sin bloqueos ni pedidos vacíos.
 

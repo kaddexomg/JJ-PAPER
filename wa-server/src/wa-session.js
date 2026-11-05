@@ -370,11 +370,6 @@ export class WaSession {
     const { connection, lastDisconnect, qr } = update;
 
     if (qr) {
-      // SI YA TIENE CREDENCIALES VÁLIDAS, PROHIBIDO EMITIR O MOSTRAR QR
-      if (this.hasCreds()) {
-        log.warn({ profile: this.profileId }, 'QR recibido en sesión ya autenticada — ignorado para no romper el enlace del teléfono');
-        return;
-      }
       this.qrTimeouts = 0;
       if (this.pairingPhone && !state.creds.registered && !this.pairingRequested) {
         // Alternativa al QR: código de emparejamiento de 8 caracteres
@@ -442,7 +437,7 @@ export class WaSession {
       // Código 408 (timedOut) mientras se esperaba escaneo del QR (sin credenciales previas)
       if (code === DisconnectReason.timedOut && !this.hasCreds()) {
         this.qrTimeouts = (this.qrTimeouts || 0) + 1;
-        if (this.qrTimeouts <= 6) {
+        if (this.qrTimeouts <= 15) {
           log.info({ profile: this.profileId, intento: this.qrTimeouts }, 'Rotando código QR de inmediato…');
           this.reconnectMs = 1000;
           this.scheduleReconnect();

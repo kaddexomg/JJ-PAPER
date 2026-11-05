@@ -164,20 +164,33 @@ async function execAction(profileId, row) {
   log.info({ profile: row.profile_id, action }, 'acción solicitada por el usuario');
 
   if (action === 'connect') {
-    // Si la sesión YA TIENE credenciales guardadas en disco, NUNCA pedir un nuevo QR
-    if (s.hasCreds()) {
-      log.info({ profile: row.profile_id }, 'Sesión ya vinculada — re-enganchando socket sin QR');
+    // Si la sesión YA ESTÁ ABIERTA Y CONECTADA, no tocarla salvo que pidan forzar QR
+    if (s.isConnected() && s.wsOpen() && !row.force_qr) {
+      log.info({ profile: row.profile_id }, 'Sesión ya conectada y socket abierto — sin cambios');
+      return;
+    }
+
+    // Si la sesión ya tiene credenciales pero se desconectó, y NO pidieron forzar QR, intentar reconectar
+    if (s.hasCreds() && !row.force_qr) {
+      log.info({ profile: row.profile_id }, 'Sesión ya vinculada — re-enganchando socket');
       if (!s.isConnected() || !s.wsOpen()) {
         await s.start();
       }
       return;
     }
 
-    // Cuenta sin credenciales: generar QR bajo demanda para este vendedor exclusivamente
+    // Cuenta sin credenciales o forzado de nuevo QR: generar QR bajo demanda para este vendedor exclusivamente
+    log.info({ profile: row.profile_id, force: !!row.force_qr }, 'Iniciando generación de QR bajo demanda para vendedor');
     s.pairingPhone = null;
     s.qrTimeouts = 0;
     s.reconnectMs = 2000;
     if (!s.stopped) await s.stop('starting');
+    if (row.force_qr) {
+      try {
+        const credPath = path.join(s.dir, 'creds.json');
+        if (fs.existsSync(credPath)) fs.unlinkSync(credPath);
+      } catch (_) {}
+    }
     await s.start();
   } else if (action === 'request_pairing') {
     const phone = normVePhone(row.pairing_phone);

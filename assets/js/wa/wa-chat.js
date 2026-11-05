@@ -777,13 +777,13 @@ function waUpdateConnectionUI() {
   } else {
     banner.classList.remove('wa-hide');
     const st = WA_SESSION?.status || 'logged_out';
-    const reason = st === 'logged_out' ? 'La sesión está cerrada (requiere vincular con código QR).'
-                 : st === 'pending_qr' ? 'Esperando que escanees el código QR en tu teléfono.'
-                 : st === 'disconnected' ? 'El servidor no responde o está reconectando.'
-                 : 'Conexión no activa.';
+    const reason = st === 'pending_qr' ? 'Código QR generado. Escanéalo en tu teléfono.'
+                 : st === 'starting' ? 'Generando código QR con WhatsApp…'
+                 : st === 'reconnecting' ? 'Reconectando con tu teléfono…'
+                 : 'Tu cuenta aún no está vinculada a WhatsApp.';
     const textEl = banner.querySelector('.wa-disconn-text');
     if (textEl) {
-      textEl.innerHTML = `⚠️ <strong>WhatsApp no está conectado al servidor.</strong> ${reason} Los mensajes enviados quedarán en espera hasta que vincules tu cuenta.`;
+      textEl.innerHTML = `📱 <strong>WhatsApp no está vinculado.</strong> ${reason} Los mensajes enviados quedarán en cola hasta vincular tu cuenta.`;
     }
   }
 }
@@ -1394,10 +1394,11 @@ async function waRenderSessions() {
   const { data: sess } = await sb.from('jjp_wa_sessions').select('*');
   const rows = waProfiles.map(p => {
     const s = (sess || []).find(x => x.profile_id === p.id);
+    const isConn = s?.status === 'connected';
     return `<tr>
       <td><strong>${escapeHTML(p.name || '—')}</strong><br><small>${p.role === 'admin' ? 'Admin' : 'Vendedor'}</small></td>
-      <td>${s ? (WA_SESSION_LABEL[s.status] || s.status) : '—'}</td>
-      <td>${s?.wa_number ? escapeHTML(waPrettyPhone(s.wa_number)) : '—'}</td>
+      <td><span class="wa-chip ${isConn ? 'ok' : ''}" style="display:inline-block;padding:2px 8px;font-size:11px;">${s ? (WA_SESSION_LABEL[s.status] || s.status) : '—'}</span></td>
+      <td>${s?.wa_number ? escapeHTML(waPrettyPhone(s.wa_number)) : '<span style="color:#94a3b8">Sin vincular</span>'}</td>
       <td>
         <label class="wa-switch">
           <input type="checkbox" ${s?.enabled ? 'checked' : ''}
@@ -1405,14 +1406,17 @@ async function waRenderSessions() {
           <span></span>
         </label>
       </td>
-      <td>${s?.status === 'connected' || s?.status === 'disconnected'
-            ? `<button class="btn-o" onclick="waAdminLogout('${p.id}')">Desvincular</button>` : ''}</td>
+      <td style="white-space:nowrap;">
+        ${isConn
+          ? `<button class="btn-o btn-sm" onclick="waAdminLogout('${p.id}')" title="Desvincular esta cuenta de WhatsApp" style="color:#b91c1c;border-color:#fca5a5;padding:4px 8px;font-size:11px;">🔌 Desvincular</button>`
+          : `<button class="btn-p btn-sm" onclick="closeWaSessionsModal(); openWaLinkModal('${p.id}', '${escapeHTML(p.name || '')}');" title="Generar o ver código QR para este vendedor" style="padding:5px 10px;font-size:11.5px;font-weight:600;">📲 Vincular / Ver QR</button>`}
+      </td>
     </tr>`;
   }).join('');
   body.innerHTML = `<table class="admin-table">
-    <thead><tr><th>Usuario</th><th>Estado</th><th>Número</th><th>Habilitada</th><th></th></tr></thead>
+    <thead><tr><th>Usuario</th><th>Estado</th><th>Número</th><th>Habilitada</th><th>Acción</th></tr></thead>
     <tbody>${rows}</tbody></table>
-    <p class="wa-link-note">Habilitar = ese usuario puede vincular SU cuenta desde su panel. Cada cuenta es individual.</p>`;
+    <p class="wa-link-note" style="margin-top:10px;">💡 <strong>Vincular vendedor:</strong> Pulsa <em>"📲 Vincular / Ver QR"</em> para generar el código QR de cualquier vendedor y escanearlo directamente desde su teléfono sin salir del panel de administración.</p>`;
 }
 
 async function waToggleSession(profileId, enabled) {

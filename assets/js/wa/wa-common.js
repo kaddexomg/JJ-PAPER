@@ -167,11 +167,11 @@ function waAvatarStyle(texto) {
 }
 
 const WA_SESSION_LABEL = {
-  disabled: '⛔ Deshabilitada', starting: '⏳ Iniciando…',
-  pending_qr: '📷 Esperando escaneo de QR', pending_pairing: '🔢 Esperando código',
+  disabled: '⛔ Deshabilitada', starting: '⏳ Generando código QR…',
+  pending_qr: '📷 Escanea el código QR con WhatsApp', pending_pairing: '🔢 Esperando código',
   connected: '🟢 Conectado', reconnecting: '🔄 Reconectando…',
-  disconnected: '🔴 Desconectado (¿wa-server apagado?)',
-  logged_out: '⚪ Sin vincular', error: '⚠️ Error'
+  disconnected: '⚪ Sin vincular',
+  logged_out: '⚪ Sin vincular', error: '⚠️ Error de conexión'
 };
 
 // URLs firmadas del bucket privado jjp-wa-media.

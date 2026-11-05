@@ -10,14 +10,14 @@ if not exist "%~dp0logs" mkdir "%~dp0logs"
 set "LOGFILE=%~dp0logs\agent.log"
 
 :LOOP
-echo [%date% %time%] [GIT] Verificando actualizaciones de repositorio... >> "%LOGFILE%"
-git pull origin main >> "%LOGFILE%" 2>&1
+echo [%date% %time%] [GIT] Verificando actualizaciones de repositorio...
+git pull origin main
 
-echo [%date% %time%] [INICIO] Arrancando agente MixNet con "%NODE_BIN%"... >> "%LOGFILE%"
-"%NODE_BIN%" agent.js >> "%LOGFILE%" 2>&1
+echo [%date% %time%] [INICIO] Arrancando agente MixNet con "%NODE_BIN%"...
+"%NODE_BIN%" agent.js
 set CODE=%errorlevel%
 
-echo [%date% %time%] [ALERTA] El proceso del agente finalizo con codigo %CODE%. Reiniciando en 5s... >> "%LOGFILE%"
+echo [%date% %time%] [ALERTA] El proceso del agente finalizo con codigo %CODE%. Reiniciando en 5s...
 
 ping -n 6 127.0.0.1 >nul
 goto LOOP

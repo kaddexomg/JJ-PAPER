@@ -63,9 +63,10 @@ export function getMixnetDir() {
     'M:/MIX11/comp01',
     'Z:\\comp01',
     'Z:/comp01',
+    'C:\\MIX11\\comp01',
+    'C:/MIX11/comp01',
     '\\\\servidor\\MIX11\\comp01',
-    '\\\\192.168.0.185\\MIX11\\comp01',
-    'C:\\MIX11\\comp01'
+    '\\\\192.168.0.185\\MIX11\\comp01'
   ].filter(Boolean);
 
   for (const cand of candidates) {

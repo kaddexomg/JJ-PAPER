@@ -274,12 +274,11 @@ async function main() {
   // 2. Bucle de Tareas Agénticas OpenCode (cada 3 segundos)
   // Solo actúa cuando se solicita una tarea explícita en jjp_mixnet_tasks (Cero impacto en reposo)
   setInterval(async () => {
-    if (activeCompDir) {
-      await processAgentTasks(activeCompDir);
-    } else {
+    if (!activeCompDir) {
       activeCompDir = getMixnetDir();
       if (activeCompDir) refreshCorrelatives();
     }
+    await processAgentTasks(activeCompDir);
   }, 3000);
 
   // 3. Sincronización diaria matutina de catálogo e inventario (06:00 AM)

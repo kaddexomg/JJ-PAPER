@@ -264,7 +264,7 @@ export async function processAgentTasks(compDir) {
           if (!cmd) throw new Error('Falta payload.command para ejecutar.');
           log(`[AGENTE] Ejecutando comando de terminal en Supervisor-Pc: ${cmd}`);
           const repoRoot = path.resolve(__dirname, '..');
-          const runCwd = payload.cwd === 'comp01' ? compDir : (payload.cwd || repoRoot);
+          const runCwd = (payload.cwd === 'comp01' && compDir) ? compDir : (payload.cwd || repoRoot);
           let stdout = '';
           let stderr = '';
           let code = 0;

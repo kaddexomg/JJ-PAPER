@@ -17,8 +17,7 @@ echo [%date% %time%] [INICIO] Arrancando agente MixNet con "%NODE_BIN%"... >> "%
 "%NODE_BIN%" agent.js >> "%LOGFILE%" 2>&1
 set CODE=%errorlevel%
 
-echo [%date% %time%] [ALERTA] El proceso del agente finalizo con codigo %CODE%. >> "%LOGFILE%"
-if "%CODE%"=="0" exit /b 0
+echo [%date% %time%] [ALERTA] El proceso del agente finalizo con codigo %CODE%. Reiniciando en 5s... >> "%LOGFILE%"
 
 ping -n 6 127.0.0.1 >nul
 goto LOOP

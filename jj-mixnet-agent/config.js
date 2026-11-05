@@ -49,13 +49,15 @@ export const PROFILE_ID_TO_CODVEN = {
   '23723fcb-b26d-4e5a-b451-c4ea118a7ce3': '003'
 };
 
+let lastUncCheckTime = 0;
+
 /**
  * Detecta la ruta maestra activa de MixNet (comp01).
  * Si corre en el servidor central (192.168.0.185): 'D:\\MIX11\\comp01'
  * Si corre en red local: 'M:\\MIX11\\comp01' o 'Z:\\comp01'
  */
 export function getMixnetDir() {
-  const candidates = [
+  const localCandidates = [
     process.env.MIXNET_DIR,
     'D:\\MIX11\\comp01',
     'D:/MIX11/comp01',
@@ -64,12 +66,10 @@ export function getMixnetDir() {
     'Z:\\comp01',
     'Z:/comp01',
     'C:\\MIX11\\comp01',
-    'C:/MIX11/comp01',
-    '\\\\servidor\\MIX11\\comp01',
-    '\\\\192.168.0.185\\MIX11\\comp01'
+    'C:/MIX11/comp01'
   ].filter(Boolean);
 
-  for (const cand of candidates) {
+  for (const cand of localCandidates) {
     try {
       if (fs.existsSync(cand)) {
         const testFile = path.join(cand, 'MXNUMCOT.DBF');
@@ -79,6 +79,28 @@ export function getMixnetDir() {
       }
     } catch (_) {}
   }
+
+  // Rutas UNC de red: evaluar solo si pasaron al menos 60 segundos desde la última prueba
+  // Evita bloquear el Event Loop síncronamente en Windows si la red está en reconexión
+  const now = Date.now();
+  if (now - lastUncCheckTime > 60000) {
+    lastUncCheckTime = now;
+    const uncCandidates = [
+      '\\\\servidor\\MIX11\\comp01',
+      '\\\\192.168.0.185\\MIX11\\comp01'
+    ];
+    for (const cand of uncCandidates) {
+      try {
+        if (fs.existsSync(cand)) {
+          const testFile = path.join(cand, 'MXNUMCOT.DBF');
+          if (fs.existsSync(testFile)) {
+            return cand;
+          }
+        }
+      } catch (_) {}
+    }
+  }
+
   return null;
 }
 

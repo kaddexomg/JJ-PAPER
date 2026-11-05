@@ -183,7 +183,7 @@ AGENTS.md                ← Contexto maestro y reglas inviolables para agentes 
 - **Manual y Runbook Completo**: Consultar `docs/RUNBOOK_SUPERVISOR_PC_PUENTE.md`.
 - **Topología de Red**:
   - **PC Supervisor**: Situada en la tienda física, comparte `M:\MIX11\comp01` con las 5 computadoras de los vendedores de la tienda.
-  - **Proceso Maestro en Supervisor**: `jj-mixnet-agent\START-AGENT.bat` (`node agent.js`). Modo Centinela Silencioso 24/7. Ejecuta bucle de tareas OpenCode (3s), heartbeat pasivo (15s) y sincronización de catálogo matutina (06:00 AM o bajo demanda). Erradicados los bucles ciegos agresivos de 10s y 60s en caliente para prevenir bloqueos de SMB y caídas de MixNet.
+  - **Proceso Maestro en Supervisor**: `jj-mixnet-agent\START-AGENT.bat` (`node agent.js`). Modo Guardián Autónomo 24/7. Ejecuta bucle de tareas OpenCode (3s), bucle de sincronización continua de documentos MixNet ➔ Web (15s mediante sondeo inteligente no invasivo de `mtime`/`numRecords` y validación por lotes), heartbeat pasivo (15s) con escucha de comandos remotos en `jjp_server_control`, y sincronización de catálogo matutina (06:00 AM o bajo demanda). Erradicados los bucles ciegos agresivos de catálogo que saturaban SMB.
   - **VPS Soberano**: PostgreSQL 16 expuesto vía PostgREST con bus `jjp_mixnet_tasks`.
   - **Dispositivos Web / Laptop**: Se comunican estrictamente con el VPS. Prohibido intentar llamadas HTTP directas a IPs locales (`127.0.0.1` o `192.168.0.185`) que son bloqueadas por Mixed Content.
 - **Inserción Nativa en MixNet (Regla del Botón `📥 Insertar`)**:

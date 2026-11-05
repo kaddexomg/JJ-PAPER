@@ -22,6 +22,10 @@ export function isTestEntity(name = '', rif = '', notes = '') {
 }
 
 let importedDocuments = new Set(); // serials already processed
+let lastCotMtime = 0;
+let lastCotRecords = 0;
+let lastPedMtime = 0;
+let lastPedRecords = 0;
 
 async function resolveMixnetCustomerId(rif, nomcli) {
   try {
@@ -51,95 +55,119 @@ export async function importMixnetDocuments(compDir) {
   const renCotPath = path.join(compDir, 'MXRENCOT.DBF');
 
   if (fs.existsSync(encCotPath) && fs.existsSync(renCotPath)) {
-    const sEnc = readDbfStruct(encCotPath);
-    const sRen = readDbfStruct(renCotPath);
+    try {
+      const statEnc = fs.statSync(encCotPath);
+      const sEnc = readDbfStruct(encCotPath);
 
-    if (sEnc && sRen && sEnc.numRecords > 0) {
-      // Leer las últimas 50 cotizaciones (incluyendo moneda para detectar Bolívares vs USD)
-      const encRows = readDbfRows(sEnc, ['numcot', 'emision', 'cliente', 'nomcli', 'cif', 'codven', 'comen1', 'tot_cot', 'cambio', 'moneda'], 50, true);
+      // Si el archivo no ha cambiado y ya se hizo un barrido inicial, saltar para 0 impacto
+      const cotChanged = statEnc.mtimeMs !== lastCotMtime || sEnc.numRecords !== lastCotRecords;
+      if (cotChanged && sEnc && sEnc.numRecords > 0) {
+        lastCotMtime = statEnc.mtimeMs;
+        lastCotRecords = sEnc.numRecords;
+        const sRen = readDbfStruct(renCotPath);
 
-      // Agrupar renglones por numcot para los documentos a evaluar
-      const renRows = readDbfRows(sRen, ['numcot', 'item', 'descrip', 'cantidad', 'precio', 'tot_ren'], 500, true);
+        // Leer hasta 150 cotizaciones hacia atrás para asegurar que cubrimos días anteriores pendientes
+        const encRows = readDbfRows(sEnc, ['numcot', 'emision', 'cliente', 'nomcli', 'cif', 'codven', 'comen1', 'tot_cot', 'cambio', 'moneda'], 150, true);
 
-      const itemsMap = new Map();
-      for (const d of renRows) {
-        const num = String(d.numcot || '').trim().padStart(8, '0');
-        if (!itemsMap.has(num)) itemsMap.set(num, []);
-        itemsMap.get(num).push(d);
+        // Batch check en Supabase: comprobar existencia de números en 1 sola petición HTTP
+        const unverifiedNums = encRows
+          .map(r => String(r.numcot || '').trim().padStart(8, '0'))
+          .filter(n => n && n !== '00000000' && !importedDocuments.has(`cot:${n}`));
+
+        if (unverifiedNums.length > 0) {
+          try {
+            // Dividir en bloques de 50 para no exceder longitud de URL en GET
+            for (let i = 0; i < unverifiedNums.length; i += 50) {
+              const chunk = unverifiedNums.slice(i, i + 50);
+              const exRows = await sbGet('jjp_quotes', `quote_number=in.(${chunk.join(',')})&select=quote_number`);
+              if (Array.isArray(exRows)) {
+                for (const ex of exRows) {
+                  const exNum = String(ex.quote_number || '').trim().padStart(8, '0');
+                  importedDocuments.add(`cot:${exNum}`);
+                }
+              }
+            }
+          } catch (_) {}
+        }
+
+        // Agrupar renglones por numcot para los documentos a evaluar
+        const renRows = readDbfRows(sRen, ['numcot', 'item', 'descrip', 'cantidad', 'precio', 'tot_ren'], 1500, true);
+
+        const itemsMap = new Map();
+        for (const d of renRows) {
+          const num = String(d.numcot || '').trim().padStart(8, '0');
+          if (!itemsMap.has(num)) itemsMap.set(num, []);
+          itemsMap.get(num).push(d);
+        }
+
+        for (const r of encRows) {
+          const num = String(r.numcot || '').trim().padStart(8, '0');
+          if (!num || num === '00000000') continue;
+          if (r.cliente === '00-000' || r.cliente === '00000') continue; // Omitir basura histórica
+
+          const docKey = `cot:${num}`;
+          if (importedDocuments.has(docKey)) continue;
+
+          let total = parseFloat(String(r.tot_cot || '0').replace(/,/g, '.')) || 0;
+          if (total <= 0) continue;
+
+          const codven = String(r.codven || '').trim();
+          const sellerProfile = SELLER_CODVEN_TO_PROFILE[codven] || null;
+          const sellerId = sellerProfile ? sellerProfile.id : null;
+          const rate = parseFloat(String(r.cambio || '0').replace(/,/g, '.')) || 0;
+          const moneda = String(r.moneda || '').trim().toUpperCase();
+
+          const rawItems = itemsMap.get(num) || [];
+          let items = rawItems.map(i => ({
+            sku: String(i.item || '').trim(),
+            name: String(i.descrip || 'Articulo').trim(),
+            qty: parseFloat(String(i.cantidad || '1').replace(/,/g, '.')) || 1,
+            price_usd: parseFloat(String(i.precio || '0').replace(/,/g, '.')) || 0,
+            subtotal_usd: parseFloat(String(i.tot_ren || '0').replace(/,/g, '.')) || 0
+          }));
+
+          // Detectar si MixNet guardó montos en Bolívares con tasa BCV > 30
+          const maxItemPrice = items.reduce((m, it) => Math.max(m, it.price_usd || 0), 0);
+          const isBolivares = rate > 30 && (moneda === 'BS' || moneda === 'BS.' || moneda === 'VES' || maxItemPrice > 400 || total > 15000);
+          if (isBolivares) {
+            total = +(total / rate).toFixed(2);
+            items = items.map(it => {
+              const p = +(it.price_usd / rate).toFixed(2);
+              const s = it.subtotal_usd > 0 ? +(it.subtotal_usd / rate).toFixed(2) : +(p * it.qty).toFixed(2);
+              return { ...it, price_usd: p, subtotal_usd: s };
+            });
+          }
+
+          const clientName = String(r.nomcli || 'Cliente MixNet').trim();
+          const rif = String(r.cif || '').trim() || null;
+          const customerId = await resolveMixnetCustomerId(rif, clientName);
+
+          const payload = {
+            quote_number: num,
+            customer_id: customerId,
+            client_name: clientName,
+            rif,
+            items,
+            estimated_total_usd: total,
+            exchange_rate: rate,
+            notes: String(r.comen1 || '').trim() || null,
+            source: 'mixnet',
+            status: 'confirmado',
+            seller_id: sellerId
+          };
+
+          try {
+            await sbPost('jjp_quotes', payload);
+            importedDocuments.add(docKey);
+            importedQuotes++;
+            log(`Cotización #${num} importada de MixNet: $${total.toFixed(2)} USD [Vendedor: ${sellerProfile ? sellerProfile.name : (codven || 'Sin asignar')}]`);
+          } catch (err) {
+            log(`Aviso importando cotización #${num}: ${err.message}`, 'WARN');
+          }
+        }
       }
-
-      for (const r of encRows) {
-        const num = String(r.numcot || '').trim().padStart(8, '0');
-        if (!num || num === '00000000') continue;
-        if (r.cliente === '00-000' || r.cliente === '00000') continue; // Omitir basura histórica
-
-        const docKey = `cot:${num}`;
-        if (importedDocuments.has(docKey)) continue;
-
-        let total = parseFloat(String(r.tot_cot || '0').replace(/,/g, '.')) || 0;
-        if (total <= 0) continue;
-
-        // Verificar si ya existe en Supabase
-        const existing = await sbGet('jjp_quotes', `quote_number=eq.${num}&select=id`);
-        if (existing && existing.length > 0) {
-          importedDocuments.add(docKey);
-          continue;
-        }
-
-        const codven = String(r.codven || '').trim();
-        const sellerProfile = SELLER_CODVEN_TO_PROFILE[codven] || null;
-        const sellerId = sellerProfile ? sellerProfile.id : null;
-        const rate = parseFloat(String(r.cambio || '0').replace(/,/g, '.')) || 0;
-        const moneda = String(r.moneda || '').trim().toUpperCase();
-
-        const rawItems = itemsMap.get(num) || [];
-        let items = rawItems.map(i => ({
-          sku: String(i.item || '').trim(),
-          name: String(i.descrip || 'Articulo').trim(),
-          qty: parseFloat(String(i.cantidad || '1').replace(/,/g, '.')) || 1,
-          price_usd: parseFloat(String(i.precio || '0').replace(/,/g, '.')) || 0,
-          subtotal_usd: parseFloat(String(i.tot_ren || '0').replace(/,/g, '.')) || 0
-        }));
-
-        // Detectar si MixNet guardó montos en Bolívares con tasa BCV > 30
-        const maxItemPrice = items.reduce((m, it) => Math.max(m, it.price_usd || 0), 0);
-        const isBolivares = rate > 30 && (moneda === 'BS' || moneda === 'BS.' || moneda === 'VES' || maxItemPrice > 400 || total > 15000);
-        if (isBolivares) {
-          total = +(total / rate).toFixed(2);
-          items = items.map(it => {
-            const p = +(it.price_usd / rate).toFixed(2);
-            const s = it.subtotal_usd > 0 ? +(it.subtotal_usd / rate).toFixed(2) : +(p * it.qty).toFixed(2);
-            return { ...it, price_usd: p, subtotal_usd: s };
-          });
-        }
-
-        const clientName = String(r.nomcli || 'Cliente MixNet').trim();
-        const rif = String(r.cif || '').trim() || null;
-        const customerId = await resolveMixnetCustomerId(rif, clientName);
-
-        const payload = {
-          quote_number: num,
-          customer_id: customerId,
-          client_name: clientName,
-          rif,
-          items,
-          estimated_total_usd: total,
-          exchange_rate: rate,
-          notes: String(r.comen1 || '').trim() || null,
-          source: 'mixnet',
-          status: 'confirmado',
-          seller_id: sellerId
-        };
-
-        try {
-          await sbPost('jjp_quotes', payload);
-          importedDocuments.add(docKey);
-          importedQuotes++;
-          log(`Cotización #${num} importada de MixNet: $${total.toFixed(2)} USD [Vendedor: ${sellerProfile ? sellerProfile.name : (codven || 'Sin asignar')}]`);
-        } catch (err) {
-          log(`Aviso importando cotización #${num}: ${err.message}`, 'WARN');
-        }
-      }
+    } catch (errCot) {
+      log(`Aviso leyendo cotizaciones de MixNet: ${errCot.message}`, 'WARN');
     }
   }
 
@@ -148,94 +176,118 @@ export async function importMixnetDocuments(compDir) {
   const renPedPath = path.join(compDir, 'MXRENPED.DBF');
 
   if (fs.existsSync(encPedPath) && fs.existsSync(renPedPath)) {
-    const sEnc = readDbfStruct(encPedPath);
-    const sRen = readDbfStruct(renPedPath);
+    try {
+      const statEnc = fs.statSync(encPedPath);
+      const sEnc = readDbfStruct(encPedPath);
 
-    if (sEnc && sRen && sEnc.numRecords > 0) {
-      const encRows = readDbfRows(sEnc, ['numped', 'emision', 'cliente', 'nomcli', 'cif', 'codven', 'comen1', 'tot_ped', 'cambio', 'moneda'], 50, true);
-      const renRows = readDbfRows(sRen, ['numped', 'item', 'descrip', 'cantidad', 'precio', 'tot_ren'], 500, true);
+      const pedChanged = statEnc.mtimeMs !== lastPedMtime || sEnc.numRecords !== lastPedRecords;
+      if (pedChanged && sEnc && sEnc.numRecords > 0) {
+        lastPedMtime = statEnc.mtimeMs;
+        lastPedRecords = sEnc.numRecords;
+        const sRen = readDbfStruct(renPedPath);
 
-      const itemsMap = new Map();
-      for (const d of renRows) {
-        const num = String(d.numped || '').trim().padStart(8, '0');
-        if (!itemsMap.has(num)) itemsMap.set(num, []);
-        itemsMap.get(num).push(d);
+        const encRows = readDbfRows(sEnc, ['numped', 'emision', 'cliente', 'nomcli', 'cif', 'codven', 'comen1', 'tot_ped', 'cambio', 'moneda'], 150, true);
+
+        // Batch check en Supabase: comprobar existencia de números en 1 sola petición HTTP
+        const unverifiedNums = encRows
+          .map(r => String(r.numped || '').trim().padStart(8, '0'))
+          .filter(n => n && n !== '00000000' && !importedDocuments.has(`ped:${n}`));
+
+        if (unverifiedNums.length > 0) {
+          try {
+            for (let i = 0; i < unverifiedNums.length; i += 50) {
+              const chunk = unverifiedNums.slice(i, i + 50);
+              const exRows = await sbGet('jjp_orders', `order_number=in.(${chunk.join(',')})&select=order_number`);
+              if (Array.isArray(exRows)) {
+                for (const ex of exRows) {
+                  const exNum = String(ex.order_number || '').trim().padStart(8, '0');
+                  importedDocuments.add(`ped:${exNum}`);
+                }
+              }
+            }
+          } catch (_) {}
+        }
+
+        const renRows = readDbfRows(sRen, ['numped', 'item', 'descrip', 'cantidad', 'precio', 'tot_ren'], 1500, true);
+
+        const itemsMap = new Map();
+        for (const d of renRows) {
+          const num = String(d.numped || '').trim().padStart(8, '0');
+          if (!itemsMap.has(num)) itemsMap.set(num, []);
+          itemsMap.get(num).push(d);
+        }
+
+        for (const r of encRows) {
+          const num = String(r.numped || '').trim().padStart(8, '0');
+          if (!num || num === '00000000') continue;
+          if (r.cliente === '00-000' || r.cliente === '00000') continue;
+
+          const docKey = `ped:${num}`;
+          if (importedDocuments.has(docKey)) continue;
+
+          let total = parseFloat(String(r.tot_ped || '0').replace(/,/g, '.')) || 0;
+          if (total <= 0) continue;
+
+          const codven = String(r.codven || '').trim();
+          const sellerProfile = SELLER_CODVEN_TO_PROFILE[codven] || null;
+          const sellerId = sellerProfile ? sellerProfile.id : null;
+          const rate = parseFloat(String(r.cambio || '0').replace(/,/g, '.')) || 0;
+          const moneda = String(r.moneda || '').trim().toUpperCase();
+
+          const rawItems = itemsMap.get(num) || [];
+          let items = rawItems.map(i => ({
+            sku: String(i.item || '').trim(),
+            name: String(i.descrip || 'Articulo').trim(),
+            qty: parseFloat(String(i.cantidad || '1').replace(/,/g, '.')) || 1,
+            price_usd: parseFloat(String(i.precio || '0').replace(/,/g, '.')) || 0,
+            subtotal_usd: parseFloat(String(i.tot_ren || '0').replace(/,/g, '.')) || 0
+          }));
+
+          // Detectar si MixNet guardó montos en Bolívares con tasa BCV > 30
+          const maxItemPrice = items.reduce((m, it) => Math.max(m, it.price_usd || 0), 0);
+          const isBolivares = rate > 30 && (moneda === 'BS' || moneda === 'BS.' || moneda === 'VES' || maxItemPrice > 400 || total > 15000);
+          if (isBolivares) {
+            total = +(total / rate).toFixed(2);
+            items = items.map(it => {
+              const p = +(it.price_usd / rate).toFixed(2);
+              const s = it.subtotal_usd > 0 ? +(it.subtotal_usd / rate).toFixed(2) : +(p * it.qty).toFixed(2);
+              return { ...it, price_usd: p, subtotal_usd: s };
+            });
+          }
+
+          const clientName = String(r.nomcli || 'Cliente MixNet').trim();
+          const rif = String(r.cif || '').trim() || null;
+          const customerId = await resolveMixnetCustomerId(rif, clientName);
+
+          const payload = {
+            order_number: num,
+            customer_id: customerId,
+            client_name: clientName,
+            rif,
+            items,
+            subtotal_usd: total,
+            total_usd: total,
+            exchange_rate: rate,
+            total_bs: rate > 0 ? +(total * rate).toFixed(2) : 0,
+            payment_method: 'efectivo',
+            notes: String(r.comen1 || '').trim() || null,
+            source: 'mixnet',
+            status: 'pagado',
+            seller_id: sellerId
+          };
+
+          try {
+            await sbPost('jjp_orders', payload);
+            importedDocuments.add(docKey);
+            importedOrders++;
+            log(`Pedido #${num} importado de MixNet: $${total.toFixed(2)} USD [Vendedor: ${sellerProfile ? sellerProfile.name : (codven || 'Sin asignar')}]`);
+          } catch (err) {
+            log(`Aviso importando pedido #${num}: ${err.message}`, 'WARN');
+          }
+        }
       }
-
-      for (const r of encRows) {
-        const num = String(r.numped || '').trim().padStart(8, '0');
-        if (!num || num === '00000000') continue;
-        if (r.cliente === '00-000' || r.cliente === '00000') continue;
-
-        const docKey = `ped:${num}`;
-        if (importedDocuments.has(docKey)) continue;
-
-        let total = parseFloat(String(r.tot_ped || '0').replace(/,/g, '.')) || 0;
-        if (total <= 0) continue;
-
-        const existing = await sbGet('jjp_orders', `order_number=eq.${num}&select=id`);
-        if (existing && existing.length > 0) {
-          importedDocuments.add(docKey);
-          continue;
-        }
-
-        const codven = String(r.codven || '').trim();
-        const sellerProfile = SELLER_CODVEN_TO_PROFILE[codven] || null;
-        const sellerId = sellerProfile ? sellerProfile.id : null;
-        const rate = parseFloat(String(r.cambio || '0').replace(/,/g, '.')) || 0;
-        const moneda = String(r.moneda || '').trim().toUpperCase();
-
-        const rawItems = itemsMap.get(num) || [];
-        let items = rawItems.map(i => ({
-          sku: String(i.item || '').trim(),
-          name: String(i.descrip || 'Articulo').trim(),
-          qty: parseFloat(String(i.cantidad || '1').replace(/,/g, '.')) || 1,
-          price_usd: parseFloat(String(i.precio || '0').replace(/,/g, '.')) || 0,
-          subtotal_usd: parseFloat(String(i.tot_ren || '0').replace(/,/g, '.')) || 0
-        }));
-
-        // Detectar si MixNet guardó montos en Bolívares con tasa BCV > 30
-        const maxItemPrice = items.reduce((m, it) => Math.max(m, it.price_usd || 0), 0);
-        const isBolivares = rate > 30 && (moneda === 'BS' || moneda === 'BS.' || moneda === 'VES' || maxItemPrice > 400 || total > 15000);
-        if (isBolivares) {
-          total = +(total / rate).toFixed(2);
-          items = items.map(it => {
-            const p = +(it.price_usd / rate).toFixed(2);
-            const s = it.subtotal_usd > 0 ? +(it.subtotal_usd / rate).toFixed(2) : +(p * it.qty).toFixed(2);
-            return { ...it, price_usd: p, subtotal_usd: s };
-          });
-        }
-
-        const clientName = String(r.nomcli || 'Cliente MixNet').trim();
-        const rif = String(r.cif || '').trim() || null;
-        const customerId = await resolveMixnetCustomerId(rif, clientName);
-
-        const payload = {
-          order_number: num,
-          customer_id: customerId,
-          client_name: clientName,
-          rif,
-          items,
-          subtotal_usd: total,
-          total_usd: total,
-          exchange_rate: rate,
-          total_bs: rate > 0 ? +(total * rate).toFixed(2) : 0,
-          payment_method: 'efectivo',
-          notes: String(r.comen1 || '').trim() || null,
-          source: 'mixnet',
-          status: 'pagado',
-          seller_id: sellerId
-        };
-
-        try {
-          await sbPost('jjp_orders', payload);
-          importedDocuments.add(docKey);
-          importedOrders++;
-          log(`Pedido #${num} importado de MixNet: $${total.toFixed(2)} USD [Vendedor: ${sellerProfile ? sellerProfile.name : (codven || 'Sin asignar')}]`);
-        } catch (err) {
-          log(`Aviso importando pedido #${num}: ${err.message}`, 'WARN');
-        }
-      }
+    } catch (errPed) {
+      log(`Aviso leyendo pedidos de MixNet: ${errPed.message}`, 'WARN');
     }
   }
 

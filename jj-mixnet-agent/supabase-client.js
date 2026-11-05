@@ -53,9 +53,12 @@ export async function reportAgentHeartbeat(stats) {
   try {
     const currentControl = await sbGet('jjp_server_control', 'id=eq.1');
     const existingModules = currentControl?.[0]?.modules || {};
+    const remoteCommand = existingModules.command;
+    const isSyncCmd = (remoteCommand === 'sync_mixnet' || remoteCommand === 'sync_all' || remoteCommand === 'sync_documents');
 
     const updatedModules = {
       ...existingModules,
+      ...(isSyncCmd ? { command: null } : {}),
       mixnet_agent: {
         online: true,
         version: stats.version,
@@ -73,8 +76,11 @@ export async function reportAgentHeartbeat(stats) {
       heartbeat_at: new Date().toISOString(),
       modules: updatedModules
     });
+
+    return { command: remoteCommand };
   } catch (err) {
     log(`Aviso actualizando heartbeat: ${err.message}`, 'WARN');
+    return null;
   }
 }
 

@@ -264,6 +264,7 @@ async function main() {
     log(`Directorio maestro MixNet detectado: ${activeCompDir}`);
     refreshCorrelatives();
     log(`Correlativos actuales de producción: Cotizaciones=#${currentCotSerial} | Pedidos=#${currentPedSerial}`);
+    runScheduledSync().catch(err => log(`Aviso en sincronización inicial de documentos: ${err.message}`, 'WARN'));
   } else {
     log(`ADVERTENCIA: No se detectó la carpeta comp01 de MixNet. Esperando conexión...`, 'WARN');
   }
@@ -276,12 +277,24 @@ async function main() {
   setInterval(async () => {
     if (!activeCompDir) {
       activeCompDir = getMixnetDir();
-      if (activeCompDir) refreshCorrelatives();
+      if (activeCompDir) {
+        log(`Directorio maestro MixNet detectado: ${activeCompDir}`);
+        refreshCorrelatives();
+        runScheduledSync().catch(() => {});
+      }
     }
     await processAgentTasks(activeCompDir);
   }, 3000);
 
-  // 3. Sincronización diaria matutina de catálogo e inventario (06:00 AM)
+  // 3. Sincronización continua de ventas y cotizaciones físicas de MixNet hacia la web (cada 15 segundos)
+  // Lee de forma ultraliviana (basada en mtime y numRecords) las nuevas emisiones en mostrador y las refleja en Supabase
+  setInterval(async () => {
+    if (activeCompDir) {
+      await runScheduledSync();
+    }
+  }, 15000);
+
+  // 4. Sincronización diaria matutina de catálogo e inventario (06:00 AM)
   // Cero sondeos destructivos durante el horario comercial.
   // Durante el día, solo se sincroniza bajo demanda explícita (comando OpenCode 'sync_catalog' o botón web).
   let lastDailySyncDate = null;
@@ -297,11 +310,11 @@ async function main() {
     }
   }, 60000);
 
-  // 4. Bucle de Heartbeat y Telemetría hacia Supabase (cada 15 segundos)
-  // Solo lee pasivamente correlativos y confirma que el nodo tienda está vivo
+  // 5. Bucle de Heartbeat y Telemetría hacia Supabase (cada 15 segundos)
+  // Reporta pulso, correlativos y atiende comandos remotos de sincronización
   setInterval(async () => {
     refreshCorrelatives();
-    await reportAgentHeartbeat({
+    const hbRes = await reportAgentHeartbeat({
       version: AGENT_VERSION,
       host: os.hostname(),
       dbf_dir: activeCompDir,
@@ -309,9 +322,13 @@ async function main() {
       current_ped_serial: currentPedSerial,
       sync_stats: syncStats
     });
+    if (hbRes?.command === 'sync_mixnet' || hbRes?.command === 'sync_all' || hbRes?.command === 'sync_documents') {
+      log(`[COMANDO REMOTO] Señal '${hbRes.command}' recibida desde jjp_server_control. Sincronizando documentos...`);
+      runScheduledSync().catch(() => {});
+    }
   }, 15000);
 
-  log('Agente MixNet iniciado y en modo guardián autónomo 24/7 (Sincronización destructiva en caliente deshabilitada).');
+  log('Agente MixNet iniciado y en modo guardián autónomo 24/7 (Sincronización continua de documentos activa).');
 }
 
 // Prevención de caídas (Self-Healing)

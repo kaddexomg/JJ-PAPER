@@ -5,7 +5,9 @@
 import { SUPABASE_URL, SERVICE_KEY, log } from './config.js';
 
 export async function sbQuery(endpoint, options = {}) {
-  const urlStr = `${SUPABASE_URL}/rest/v1/${endpoint}`;
+  const cleanBase = (SUPABASE_URL || 'http://100.89.82.36').trim().replace(/\/+$/, '');
+  const cleanEndpoint = String(endpoint || '').replace(/^\/+/, '');
+  const urlStr = `${cleanBase}/rest/v1/${cleanEndpoint}`;
   const headers = {
     'apikey': SERVICE_KEY,
     'Authorization': `Bearer ${SERVICE_KEY}`,

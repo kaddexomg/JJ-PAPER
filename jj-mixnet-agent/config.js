@@ -10,8 +10,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Credenciales Oficiales Supabase Core (VPS Soberano)
 // Enlace ultrarrápido vía red privada Tailscale al VPS (100.89.82.36) para erradicar timeouts de DNS/CANTV
-export const SUPABASE_URL = process.env.SUPABASE_URL_CORE || 'http://100.89.82.36';
-export const SERVICE_KEY  = process.env.SERVICE_KEY_CORE  || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaXNzIjoic3VwYWJhc2UiLCJpYXQiOjE3Mjk1MDAwMDAsImV4cCI6MjA0NTAwMDAwMH0.Re_nlxR74OCn2LLRN78SKEHt8FxFYanYLsZr2Cvyf8s';
+export const SUPABASE_URL = (process.env.SUPABASE_URL_CORE || 'http://100.89.82.36').trim();
+export const SERVICE_KEY  = (process.env.SERVICE_KEY_CORE  || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaXNzIjoic3VwYWJhc2UiLCJpYXQiOjE3Mjk1MDAwMDAsImV4cCI6MjA0NTAwMDAwMH0.Re_nlxR74OCn2LLRN78SKEHt8FxFYanYLsZr2Cvyf8s').trim();
 
 export const AGENT_PORT = parseInt(process.env.AGENT_PORT || '8790', 10);
 export const AGENT_VERSION = '3.1.0-PROD';

@@ -9,6 +9,7 @@ import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import fs from 'node:fs';
+import { execSync } from 'node:child_process';
 import {
   getMixnetDir, AGENT_PORT, AGENT_VERSION, log
 } from './config.js';
@@ -224,6 +225,41 @@ function startMicroApi() {
         const resData = await updateMixnetUserPermissions(activeCompDir, userCode, permissions);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(resData));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: err.message }));
+      }
+      return;
+    }
+
+    if (url.pathname === '/logs' && req.method === 'GET') {
+      const logFile = path.join(__dirname, 'logs', 'agent.log');
+      let lines = [];
+      if (fs.existsSync(logFile)) {
+        const content = fs.readFileSync(logFile, 'utf8');
+        lines = content.trim().split('\n').slice(-60);
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true, lines }));
+      return;
+    }
+
+    if (url.pathname === '/restart' && (req.method === 'POST' || req.method === 'GET')) {
+      log('[API] Orden de reinicio recibida. Reiniciando proceso en 500ms...');
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true, message: 'Reiniciando agente MixNet...' }));
+      setTimeout(() => process.exit(0), 500);
+      return;
+    }
+
+    if (url.pathname === '/pull' && (req.method === 'POST' || req.method === 'GET')) {
+      log('[API] Orden de actualización vía git pull recibida...');
+      try {
+        const repoRoot = path.resolve(__dirname, '..');
+        const out = execSync('git pull origin main', { cwd: repoRoot, encoding: 'utf8', timeout: 20000 });
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true, output: out }));
+        setTimeout(() => process.exit(0), 1000);
       } catch (err) {
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ ok: false, error: err.message }));

@@ -121,7 +121,22 @@
         if (res.content) appendTerminal(res.content, 'out');
         if (res.stderr) appendTerminal(res.stderr, 'err');
         
-        if (res.details) {
+        if (res.users && Array.isArray(res.users)) {
+          appendTerminal(`📋 Nómina y Seguridad MixNet (${res.users.length} usuarios encontrados):`, 'ok');
+          appendTerminal(' CÓDIGO │ NOMBRE DEL USUARIO          │ ROL / CARGO', 'out');
+          appendTerminal('────────┼─────────────────────────────┼─────────────────────────', 'out');
+          for (const u of res.users) {
+            const code = String(u.code || '').padEnd(6, ' ');
+            const name = String(u.name || '').slice(0, 27).padEnd(27, ' ');
+            const role = String(u.role || u.seller_type || '').slice(0, 25);
+            appendTerminal(` ${code} │ ${name} │ ${role}`, 'out');
+          }
+        } else if (res.correlatives) {
+          appendTerminal(`📊 Correlativos MixNet ERP:`, 'ok');
+          appendTerminal(`  Cotizaciones: #${res.correlatives.cot} (Registros: ${res.tables?.quotes_records || '—'})`, 'out');
+          appendTerminal(`  Pedidos:      #${res.correlatives.ped} (Registros: ${res.tables?.orders_records || '—'})`, 'out');
+          appendTerminal(`  Inventario:   ${res.tables?.catalog_records || '—'} artículos en catálogo`, 'out');
+        } else if (res.details) {
           appendTerminal(JSON.stringify(res.details, null, 2), 'out');
         }
 
@@ -142,6 +157,40 @@
     return { ok: false, timeout: true };
   }
 
+  function robustParseJson(str) {
+    if (!str) return null;
+    let clean = str.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+    const startIdx = clean.indexOf('{');
+    const endIdx = clean.lastIndexOf('}');
+    if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
+      clean = clean.substring(startIdx, endIdx + 1);
+    }
+    try {
+      return JSON.parse(clean);
+    } catch (_) {}
+
+    try {
+      let inString = false;
+      let escaped = false;
+      let sanitized = '';
+      for (let i = 0; i < clean.length; i++) {
+        const c = clean[i];
+        if (c === '"' && !escaped) {
+          inString = !inString;
+          sanitized += c;
+        } else if (inString && (c === '\n' || c === '\r')) {
+          sanitized += c === '\n' ? '\\n' : '';
+        } else {
+          sanitized += c;
+        }
+        escaped = (c === '\\' && !escaped);
+      }
+      return JSON.parse(sanitized);
+    } catch (err) {
+      throw err;
+    }
+  }
+
   async function executeAgentPrompt() {
     const inp = inputEl();
     if (!inp) return;
@@ -158,6 +207,54 @@
     inp.value = '';
 
     try {
+      // 0. Slash Commands directos (sin gastar tokens ni depender de IA)
+      const normCmd = text.toLowerCase().trim();
+      if (normCmd === '/users' || normCmd === '/usuarios') {
+        appendTerminal('Consultando usuarios y nómina de MixNet en Supervisor-PC...', 'info');
+        const taskId = await enqueueTask('list_users', { target: 'supervisor' });
+        await pollTaskResult(taskId);
+        return;
+      }
+      if (normCmd === '/status' || normCmd === '/estado' || normCmd === '/health') {
+        appendTerminal('Consultando salud del ERP y correlativos en Supervisor-PC...', 'info');
+        const taskId = await enqueueTask('audit_health', { target: 'supervisor' });
+        await pollTaskResult(taskId);
+        return;
+      }
+      if (normCmd === '/sync' || normCmd === '/sincronizar' || normCmd === '/sync-now') {
+        appendTerminal('Encolando sincronización forzada de documentos y catálogo...', 'info');
+        const taskId = await enqueueTask('sync_all', { target: 'supervisor', force: true });
+        await pollTaskResult(taskId);
+        return;
+      }
+      if (normCmd === '/reindex' || normCmd === '/reindexar') {
+        appendTerminal('Solicitando reindexación de los 10 archivos NTX en Supervisor-PC...', 'info');
+        const taskId = await enqueueTask('reindex_all', { target: 'supervisor' });
+        await pollTaskResult(taskId);
+        return;
+      }
+      if (normCmd === '/backup') {
+        appendTerminal('Creando snapshot de respaldo en comp01/backups/...', 'info');
+        const taskId = await enqueueTask('create_backup', { target: 'supervisor', label: 'consola_manual' });
+        await pollTaskResult(taskId);
+        return;
+      }
+      if (normCmd === '/clear') {
+        clearTerminal();
+        return;
+      }
+      if (normCmd === '/help' || normCmd === '/ayuda' || normCmd === 'help') {
+        appendTerminal('Comandos directos disponibles en la consola OpenCode:', 'ok');
+        appendTerminal('  /users    - Lista todos los vendedores y usuarios de caja de MixNet', 'out');
+        appendTerminal('  /status   - Estado en vivo, correlativos actuales (Cotizaciones/Pedidos) y salud', 'out');
+        appendTerminal('  /sync     - Fuerza sincronización inmediata de ventas y catálogo', 'out');
+        appendTerminal('  /reindex  - Reconstruye los 10 índices .NTX de Clipper sin bloquear caja', 'out');
+        appendTerminal('  /backup   - Crea un respaldo de seguridad sellado en comp01/backups/', 'out');
+        appendTerminal('  /clear    - Limpia la pantalla de la terminal', 'out');
+        appendTerminal('O escribe cualquier consulta en lenguaje natural (ej. "¿Cuáles fueron los últimos 3 pedidos?").', 'info');
+        return;
+      }
+
       if (activeMode === 'cmd') {
         const taskId = await enqueueTask('exec_cmd', { command: text });
         await pollTaskResult(taskId);
@@ -192,20 +289,24 @@ VENDEDORES SAGRADOS:
 - 002: Luis Alarcón | 004 / 006: Yovanni Araujo | 008: Marianela | 014: Andreina | 005: Keyder Salazar (Admin / Mostrador; Cartera 020 es artificial; Cartera 010 es histórica; ventas solo son de Keyder si CODVEN = '005').
 
 ACCIONES DISPONIBLES:
+- "list_users": Para consultar usuarios de caja, vendedores, nómina o permisos de MixNet.
+- "audit_health": Para consultar correlativos actuales, tablas y salud general del ERP.
+- "sync_all": Para sincronizar documentos y catálogo.
 - "direct_answer": Para preguntas conceptuales, explicaciones o saludos que no requieran consultar la máquina.
 - "exec_python": Script Python autónomo para consultar DBF en supervisor o procesar datos. Debe probar rutas [r'M:\\comp01\\' + archivo, r'\\\\servidor\\MIX11\\comp01\\' + archivo, r'M:\\MIX11\\comp01\\' + archivo].
 - "exec_cmd": Comandos terminal válidos (ej. git status, dir, ls, pm2 list).
 - "exec_node": Scripts Node.js para APIs o PostgreSQL.
-- "git_pull", "reindex_all", "audit_health", "create_backup".
+- "git_pull", "reindex_all", "create_backup".
 
 REGLAS CRÍTICAS:
 - NUNCA inventes comandos de shell ficticios ni envíes preguntas en lenguaje natural a la consola del sistema operativo.
 - Si el usuario pregunta por un pedido, cliente o producto de MixNet, genera SIEMPRE un script "exec_python" con target "supervisor" para consultar el archivo DBF correspondiente y mostrar la respuesta formateada con print().
+- Si el usuario pregunta por usuarios, vendedores o permisos de caja, usa la acción "list_users" con target "supervisor".
 - Responde estrictamente un JSON válido.
 
 FORMATO JSON REQUERIDO:
 {
-  "action": "direct_answer" | "exec_python" | "exec_cmd" | "exec_node" | "git_pull" | "reindex_all" | "audit_health" | "create_backup",
+  "action": "list_users" | "audit_health" | "sync_all" | "direct_answer" | "exec_python" | "exec_cmd" | "exec_node" | "git_pull" | "reindex_all" | "create_backup",
   "target": "supervisor" | "vps",
   "code": "código python o node si aplica",
   "command": "comando de shell si aplica",
@@ -221,8 +322,7 @@ FORMATO JSON REQUERIDO:
               temperature: 0.1,
               timeoutMs: 18000
             });
-            const cleaned = rawJson.replace(/```json/gi, '').replace(/```/g, '').trim();
-            aiPlan = JSON.parse(cleaned);
+            aiPlan = robustParseJson(rawJson);
           } catch (e) {
             appendTerminal(`Aviso IA: No se pudo interpretar el plan con Gemini (${e.message}).`, 'info');
           }

@@ -134,17 +134,20 @@ async function syncScope(scope, targetDir, concurrency = 12, quiet = false) {
 }
 
 function configureLaptopVdos() {
-  // Configurar autoexec.txt en C:\vDos para que monte M: en C:\MIX11 y arranque MIXNET.EXE sv
+  // Configurar autoexec.txt en C:\vDos con barra invertida final obligatoria (USE M: C:\MIX11\)
   const autoexecPath = path.join(VDOS_DIR, 'autoexec.txt');
   const autoexecContent = [
     '@echo off',
     'USE C: C:\\',
-    'USE M: C:\\MIX11',
+    'USE M: C:\\MIX11\\',
     'M:',
     'MIXNET.EXE sv',
     'EXIT'
   ].join('\r\n') + '\r\n';
   fs.writeFileSync(autoexecPath, autoexecContent, 'latin1');
+
+  const configPath = path.join(VDOS_DIR, 'config.txt');
+  fs.writeFileSync(configPath, 'WINDOW = 85\r\nMOUSE = ON\r\n', 'latin1');
 
   // Crear script lanzador en C:\MIX11\ABRIR-MIXNET-LAPTOP.bat que inicia el sincronizador en vivo y abre vDos
   const repoRoot = path.resolve(import.meta.dirname, '..');

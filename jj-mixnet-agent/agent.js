@@ -239,7 +239,8 @@ function startMicroApi() {
       try {
         const scope = url.searchParams.get('scope') || 'comp01';
         const mixRoot = activeCompDir ? path.dirname(activeCompDir) : 'M:\\MIX11';
-        const baseDir = scope === 'vdos' ? 'C:\\vDos' : (scope === 'mixnet' ? mixRoot : activeCompDir);
+        const vdosRoot = fs.existsSync('C:\\vDos\\detodo\\vDos\\vDos.exe') ? 'C:\\vDos\\detodo\\vDos' : 'C:\\vDos';
+        const baseDir = scope === 'vdos' ? vdosRoot : (scope === 'mixnet' ? mixRoot : activeCompDir);
         if (!baseDir || !fs.existsSync(baseDir)) {
           res.writeHead(404, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ ok: false, error: `Directorio no disponible para scope=${scope}` }));
@@ -250,10 +251,10 @@ function startMicroApi() {
         for (const ent of entries) {
           if (!ent.isFile()) continue;
           const n = ent.name;
-          if (scope === 'comp01' && !/\.(dbf|dbt|ntx|mem|ext|ini|cfg|txt)$/i.test(n)) continue;
-          if (scope === 'mixnet' && !/\.(exe|dll|ini|bat|mem|ext|dbf|dbt|ntx|cam|cjo|inf|mac|ord|rep|var|lin|prn|txt|cfg)$/i.test(n)) continue;
+          if (scope === 'comp01' && !/\.(dbf|dbt|ntx|mem|ext|ini|cfg|txt|doc)$/i.test(n) && n.includes('.')) continue;
           try {
             const st = fs.statSync(path.join(baseDir, n));
+            if (scope === 'mixnet' && st.size > 20 * 1024 * 1024) continue;
             files.push({ name: n, size: st.size, mtimeMs: Math.round(st.mtimeMs) });
           } catch (_) {}
         }
@@ -272,7 +273,8 @@ function startMicroApi() {
         const name = path.basename(url.searchParams.get('name') || '');
         if (!name) throw new Error('Falta parámetro name');
         const mixRoot = activeCompDir ? path.dirname(activeCompDir) : 'M:\\MIX11';
-        const baseDir = scope === 'vdos' ? 'C:\\vDos' : (scope === 'mixnet' ? mixRoot : activeCompDir);
+        const vdosRoot = fs.existsSync('C:\\vDos\\detodo\\vDos\\vDos.exe') ? 'C:\\vDos\\detodo\\vDos' : 'C:\\vDos';
+        const baseDir = scope === 'vdos' ? vdosRoot : (scope === 'mixnet' ? mixRoot : activeCompDir);
         const filePath = path.join(baseDir, name);
         if (!fs.existsSync(filePath)) {
           res.writeHead(404);

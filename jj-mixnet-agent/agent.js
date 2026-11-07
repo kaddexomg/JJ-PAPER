@@ -239,7 +239,7 @@ function startMicroApi() {
       try {
         const scope = url.searchParams.get('scope') || 'comp01';
         const mixRoot = activeCompDir ? path.dirname(activeCompDir) : 'M:\\MIX11';
-        const vdosRoot = fs.existsSync('C:\\vDos\\detodo\\vDos\\vDos.exe') ? 'C:\\vDos\\detodo\\vDos' : 'C:\\vDos';
+        const vdosRoot = 'C:\\vDos';
         const baseDir = scope === 'vdos' ? vdosRoot : (scope === 'mixnet' ? mixRoot : activeCompDir);
         if (!baseDir || !fs.existsSync(baseDir)) {
           res.writeHead(404, { 'Content-Type': 'application/json' });
@@ -273,7 +273,7 @@ function startMicroApi() {
         const name = path.basename(url.searchParams.get('name') || '');
         if (!name) throw new Error('Falta parámetro name');
         const mixRoot = activeCompDir ? path.dirname(activeCompDir) : 'M:\\MIX11';
-        const vdosRoot = fs.existsSync('C:\\vDos\\detodo\\vDos\\vDos.exe') ? 'C:\\vDos\\detodo\\vDos' : 'C:\\vDos';
+        const vdosRoot = 'C:\\vDos';
         const baseDir = scope === 'vdos' ? vdosRoot : (scope === 'mixnet' ? mixRoot : activeCompDir);
         const filePath = path.join(baseDir, name);
         if (!fs.existsSync(filePath)) {

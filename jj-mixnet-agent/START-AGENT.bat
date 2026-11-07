@@ -12,6 +12,11 @@ if not exist "%~dp0logs" mkdir "%~dp0logs"
 set "LOGFILE=%~dp0logs\agent.log"
 
 :LOOP
+netstat -ano | findstr ":8790 " | findstr "LISTENING" >nul 2>&1
+if %errorlevel%==0 (
+  ping -n 11 127.0.0.1 >nul
+  goto LOOP
+)
 echo [%date% %time%] [GIT] Sincronizando con repositorio oficial... >> "%LOGFILE%" 2>&1
 git -c core.askPass= fetch origin main --quiet >> "%LOGFILE%" 2>&1
 git -c core.askPass= reset --hard origin/main --quiet >> "%LOGFILE%" 2>&1

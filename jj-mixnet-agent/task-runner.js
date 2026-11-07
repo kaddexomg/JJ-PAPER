@@ -418,7 +418,7 @@ def read_dbf(table_name, limit=100, backwards=True):
           let stderr = '';
           let code = 0;
           try {
-            stdout = execSync(`${pyBin} "${tmpScript}"`, {
+            stdout = execSync(`${pyBin} -B "${tmpScript}"`, {
               cwd: repoRoot,
               encoding: 'utf8',
               timeout: payload.timeout || 45000,

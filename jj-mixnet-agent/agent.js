@@ -276,16 +276,19 @@ function startMicroApi() {
     res.end(JSON.stringify({ error: 'Ruta no encontrada' }));
   });
 
-  server.listen(AGENT_PORT, '0.0.0.0', () => {
-    log(`Micro-API del Agente MixNet escuchando en http://0.0.0.0:${AGENT_PORT}`);
-  });
+  return new Promise((resolve) => {
+    server.on('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        log(`Micro-API (puerto ${AGENT_PORT}) ya está en uso por otra instancia. Saliendo limpiamente.`, 'WARN');
+        process.exit(0);
+      }
+      log(`Aviso en Micro-API (puerto ${AGENT_PORT}): ${err.message}`, 'WARN');
+    });
 
-  server.on('error', (err) => {
-    if (err.code === 'EADDRINUSE') {
-      log(`Micro-API (puerto ${AGENT_PORT}) ya está en uso por otra instancia. Saliendo limpiamente.`, 'WARN');
-      process.exit(0);
-    }
-    log(`Aviso en Micro-API (puerto ${AGENT_PORT}): ${err.message}`, 'WARN');
+    server.listen(AGENT_PORT, '0.0.0.0', () => {
+      log(`Micro-API del Agente MixNet escuchando en http://0.0.0.0:${AGENT_PORT}`);
+      resolve(server);
+    });
   });
 }
 
@@ -293,6 +296,10 @@ function startMicroApi() {
  * Inicialización principal
  */
 async function main() {
+  // 1. Iniciar Micro-API local PRIMERO (Singleton Lock en puerto 8790)
+  // Garantiza que ninguna instancia duplicada inicie bucles de tareas ni sincronización
+  await startMicroApi();
+
   console.log(`
 ╔════════════════════════════════════════════════════════════════════╗
 ║               JJ PAPER — JJ-MIXNET-AGENT v${AGENT_VERSION}             ║
@@ -309,9 +316,6 @@ async function main() {
   } else {
     log(`ADVERTENCIA: No se detectó la carpeta comp01 de MixNet. Esperando conexión...`, 'WARN');
   }
-
-  // 1. Iniciar Micro-API local
-  startMicroApi();
 
   // 2. Bucle de Tareas Agénticas OpenCode (cada 1 segundo para respuesta instantánea)
   // Solo actúa cuando se solicita una tarea explícita en jjp_mixnet_tasks (Cero impacto en reposo)

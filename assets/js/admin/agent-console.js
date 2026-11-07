@@ -1,11 +1,12 @@
 /* ======================================================================
-   JJ Paper — Consola Agéntica OpenCode v3 (Claude Code / Hermes Style)
+   JJ Paper — Consola Agéntica OpenCode v4 (Autonomous Multi-Step Harness)
    assets/js/admin/agent-console.js
    ----------------------------------------------------------------------
-   Motor interactivo de doble carril:
-   1. Supervisión del Sincronizador Continuo 24/7 (Incorruptible)
-   2. Agente de Ingeniería de Código y Cirugía Autorizada (MixNet ⇄ JJ Paper)
-   Incluye Paleta Flotante de Comandos Slash (/), Skills Diarios y Diffs.
+   Inspirado en ECC Agent Harness, GateGuard, Terminal Ops y Claude Code:
+   1. Bucle ReAct Multi-Paso (Investigar ➔ Editar/Ejecutar ➔ Verificar ➔ Auto-Corregir)
+   2. Mapa Completo del Repositorio JJ Paper + MixNet ERP (comp01)
+   3. Paleta Desplegable de Comandos Slash (/) con Skills Diarios y /deploy
+   4. Ejecución ultrarrápida (gemini-3.5-flash-lite + sondeo de 500ms)
    ====================================================================== */
 
 (function () {
@@ -14,6 +15,7 @@
   let commandHistory = [];
   let historyCursor = -1;
   let isExecuting = false;
+  let sessionMemory = []; // Memoria de contexto de los últimos turnos de la sesión
 
   // Estado del menú desplegable Slash (/)
   let slashMenuOpen = false;
@@ -60,7 +62,7 @@
     {
       cmd: '/inspeccionar-dbf',
       arg: '[TABLA o LIST]',
-      cat: 'Ingeniería Código',
+      cat: 'Ingeniería DBF',
       desc: 'Radiografía completa de una tabla DBF (estructura binaria, columnas, bytes y últimos registros).'
     },
     {
@@ -70,22 +72,34 @@
       desc: 'Busca funciones, variables o columnas dentro del código fuente (.PRG/.DBF) de MixNet y JJ Paper.'
     },
     {
+      cmd: '/archivos',
+      arg: '[CARPETA]',
+      cat: 'Ingeniería Código',
+      desc: 'Lista los archivos del repositorio (ej. admin, assets/js, wa-server/src, jj-mixnet-agent o comp01).'
+    },
+    {
+      cmd: '/leer-archivo',
+      arg: '[RUTA] [INICIO] [FIN]',
+      cat: 'Ingeniería Código',
+      desc: 'Lee líneas numeradas de cualquier archivo de código de JJ Paper o MixNet.'
+    },
+    {
       cmd: '/compatibilizar',
       arg: '[DBF] [TABLA_WEB]',
       cat: 'Ingeniería Código',
       desc: 'Compara el esquema de una tabla DBF de MixNet contra una tabla PostgreSQL de JJ Paper.'
     },
     {
-      cmd: '/leer-archivo',
-      arg: '[RUTA]',
-      cat: 'Ingeniería Código',
-      desc: 'Lee el código fuente de cualquier archivo de MixNet o del repositorio JJ Paper.'
-    },
-    {
       cmd: '/editar-datos',
       arg: '[INSTRUCCIÓN]',
       cat: 'Cirugía MixNet',
       desc: 'Ordena al agente modificar, corregir o eliminar registros específicos dentro de un DBF (con .BAK previo).'
+    },
+    {
+      cmd: '/deploy',
+      arg: '[MENSAJE COMMIT]',
+      cat: 'Deploy & Git',
+      desc: 'Empaqueta dist/ (build.sh), crea commit y publica los cambios hacia GitHub / Cloudflare Pages.'
     },
     {
       cmd: '/reindex',
@@ -190,7 +204,6 @@
       return;
     }
 
-    // Si ya escribió un comando con espacio y argumentos, ocultar el menú para que escriba tranquilo
     const parts = raw.split(/\s+/);
     const typedCmd = parts[0].toLowerCase();
     const hasSpace = raw.includes(' ');
@@ -311,7 +324,7 @@
     const placeholders = {
       ai: 'Escribe "/" para ver comandos y skills, o pide cualquier cambio de código/datos en MixNet y JJ Paper...',
       cmd: activeTarget === 'vps' ? 'Escribe un comando Bash (ej. ls -la, git status, pm2 list)...' : 'Escribe un comando PowerShell (ej. Get-Process, git status, dir M:\\comp01)...',
-      python: 'Escribe código Python para ejecutar en el entorno agéntico...',
+      python: 'Escribe código Python (incluye soporte nativo para import dbf y read_dbf("TABLA"))...',
       node: 'Escribe código Node.js para ejecutar...'
     };
     const inp = inputEl();
@@ -337,11 +350,14 @@
   function renderTaskOutput(res) {
     if (res.stdout) appendTerminal(res.stdout, 'out');
     if (res.output) appendTerminal(res.output, 'out');
-    if (res.content) appendTerminal(res.content, 'out');
+    if (res.content) {
+      const header = res.path ? `📄 Archivo: ${res.path} (Líneas ${res.range || 'completas'} de ${res.totalLines || '—'})` : '📄 Contenido:';
+      appendTerminal(header, 'ok');
+      appendTerminal(res.content, 'out');
+    }
     if (res.diff) appendDiffBlock(res.diff);
     if (res.stderr) appendTerminal(res.stderr, 'err');
 
-    // 1. Usuarios de MixNet
     if (res.users && Array.isArray(res.users)) {
       appendTerminal(`📋 Nómina y Seguridad MixNet (${res.users.length} usuarios encontrados):`, 'ok');
       appendTerminal(' CÓDIGO │ NOMBRE DEL USUARIO          │ ROL / CARGO', 'out');
@@ -354,7 +370,6 @@
       }
     }
 
-    // 2. Salud y Correlativos
     if (res.correlatives) {
       appendTerminal(`📊 Estado en Vivo de MixNet ERP:`, 'ok');
       appendTerminal(`  Cotizaciones: #${res.correlatives.cot} (Registros en MXENCCOT: ${res.tables?.quotes_records || '—'})`, 'out');
@@ -362,7 +377,6 @@
       appendTerminal(`  Inventario:   ${res.tables?.catalog_records || '—'} artículos activos en MXCTAINV`, 'out');
     }
 
-    // 3. Reporte de Ventas del Día (/ventas-hoy)
     if (res.salesReport) {
       const sr = res.salesReport;
       appendTerminal(`📈 Resumen Operativo de Tienda (Fecha: ${sr.date}):`, 'ok');
@@ -383,7 +397,6 @@
       }
     }
 
-    // 4. Lista de Tablas DBF (/inspeccionar-dbf LIST)
     if (res.dbfList && Array.isArray(res.dbfList)) {
       appendTerminal(`🗄️ Tablas DBF en comp01 (${res.dbfList.length} archivos):`, 'ok');
       appendTerminal(' ARCHIVO DBF      │ REGISTROS  │ COLUMNAS │ BYTES/REG', 'out');
@@ -393,7 +406,6 @@
       }
     }
 
-    // 5. Radiografía de una Tabla DBF (/inspeccionar-dbf TABLA)
     if (res.dbfInspect) {
       const info = res.dbfInspect;
       appendTerminal(`🔬 Radiografía de ${info.table} (${info.numRecords} registros, ${info.recordLen} bytes/reg):`, 'ok');
@@ -410,7 +422,6 @@
       }
     }
 
-    // 6. Coincidencias de Código (/explorar-mixnet)
     if (res.codeMatches && Array.isArray(res.codeMatches)) {
       appendTerminal(`🔍 Explorador de Código ("${res.query}") — ${res.matchesCount} hallazgos:`, 'ok');
       for (const m of res.codeMatches) {
@@ -418,7 +429,6 @@
       }
     }
 
-    // 7. Puente de Compatibilidad de Esquemas (/compatibilizar)
     if (res.schemaBridge) {
       const sbData = res.schemaBridge;
       appendTerminal(`🌉 Puente de Esquemas: MixNet [${sbData.dbfTable}] ⇄ Web PostgreSQL [${sbData.pgTable}]`, 'ok');
@@ -426,7 +436,6 @@
       appendTerminal(`  • Columnas JJ Paper Web: ${sbData.pgColumns.join(', ')}`, 'out');
     }
 
-    // 8. Snapshots (.BAK)
     if (res.snapshots && Array.isArray(res.snapshots)) {
       appendTerminal(`💾 Respaldos (.BAK) en comp01/backups/ (${res.snapshots.length}):`, 'ok');
       for (const s of res.snapshots.slice(-15)) {
@@ -434,7 +443,6 @@
       }
     }
 
-    // 9. Resultado de Cirugía DBF
     if (res.updatedRecords !== undefined && res.table) {
       appendTerminal(`🛠️ Cirugía en ${res.table}: ${res.updatedRecords} registro(s) modificados (Respaldo previo: ${res.backupSnapshot}).`, 'ok');
     }
@@ -444,12 +452,14 @@
     }
   }
 
-  async function pollTaskResult(taskId, maxSeconds = 45) {
-    appendTerminal(`Tarea #${taskId} enviada a ${(activeTarget || 'supervisor').toUpperCase()}. Ejecutando...`, 'info');
+  async function pollTaskResult(taskId, maxSeconds = 45, silent = false) {
+    if (!silent) {
+      appendTerminal(`Tarea #${taskId} enviada a ${(activeTarget || 'supervisor').toUpperCase()}. Ejecutando...`, 'info');
+    }
 
     const startTime = Date.now();
     while (Date.now() - startTime < maxSeconds * 1000) {
-      await new Promise(r => setTimeout(r, 1100));
+      await new Promise(r => setTimeout(r, 450));
 
       const { data: tRow, error } = await sb
         .from('jjp_mixnet_tasks')
@@ -465,7 +475,7 @@
 
         if (res.ok === false || (res.exitCode !== undefined && res.exitCode !== 0)) {
           appendTerminal(`Ejecución con error en ${res.target || activeTarget} (Código ${res.exitCode || 1}).`, 'err');
-        } else {
+        } else if (!silent) {
           appendTerminal(`Ejecución completada en ${res.target || activeTarget}.`, 'ok');
         }
         return res;
@@ -512,6 +522,16 @@
     } catch (err) {
       throw err;
     }
+  }
+
+  function summarizeObservation(res) {
+    if (!res) return 'Sin salida';
+    if (res.error) return `ERROR: ${res.error}`;
+    if (res.stderr && res.ok === false) return `STDERR (exitCode ${res.exitCode}): ${String(res.stderr).slice(0, 1500)}`;
+    if (res.content) return `FILE (${res.path}, lines ${res.range}/${res.totalLines}):\n${String(res.content).slice(0, 3500)}`;
+    if (res.stdout) return String(res.stdout).slice(0, 2500);
+    if (res.output) return String(res.output).slice(0, 2500);
+    return JSON.stringify(res).slice(0, 2500);
   }
 
   async function executeAgentPrompt() {
@@ -578,6 +598,11 @@
         await pollTaskResult(taskId);
         return;
       }
+      if (cmdHead === '/archivos') {
+        const taskId = await enqueueTask('list_files', { target: activeTarget, dir: cmdArgs || '.' });
+        await pollTaskResult(taskId);
+        return;
+      }
       if (cmdHead === '/compatibilizar') {
         const [dbf, pgTable] = cmdArgs.split(/\s+/);
         const taskId = await enqueueTask('schema_bridge', {
@@ -589,11 +614,25 @@
         return;
       }
       if (cmdHead === '/leer-archivo') {
-        if (!cmdArgs) {
-          appendTerminal('Uso: /leer-archivo [ruta] (ej. /leer-archivo jj-mixnet-agent/sync-documents.js)', 'err');
+        const [fPath, sLine, eLine] = cmdArgs.split(/\s+/);
+        if (!fPath) {
+          appendTerminal('Uso: /leer-archivo [ruta] [linea_inicio] [linea_fin] (ej. /leer-archivo assets/js/catalog.js 1 120)', 'err');
           return;
         }
-        const taskId = await enqueueTask('read_file', { target: activeTarget, path: cmdArgs });
+        const taskId = await enqueueTask('read_file', {
+          target: activeTarget,
+          path: fPath,
+          startLine: sLine ? parseInt(sLine, 10) : 1,
+          endLine: eLine ? parseInt(eLine, 10) : undefined
+        });
+        await pollTaskResult(taskId);
+        return;
+      }
+      if (cmdHead === '/deploy') {
+        const taskId = await enqueueTask('deploy_changes', {
+          target: activeTarget,
+          message: cmdArgs || 'feat(opencode): actualización desde consola agéntica'
+        });
         await pollTaskResult(taskId);
         return;
       }
@@ -636,14 +675,13 @@
         return;
       }
       if (cmdHead === '/help' || cmdHead === '/ayuda') {
-        appendTerminal('Comandos y Skills disponibles (también puedes pulsar "/" para abrir el menú interactivo):', 'ok');
+        appendTerminal('Comandos y Skills disponibles (pulsa "/" para abrir el menú interactivo):', 'ok');
         for (const c of SLASH_COMMANDS) {
           appendTerminal(`  ${(c.cmd + ' ' + c.arg).padEnd(28, ' ')} — ${c.desc}`, 'out');
         }
         return;
       }
 
-      // Si usó /editar-datos [instrucción], pasamos la instrucción al Agente de Código con permiso explícito de mutación
       const effectivePrompt = cmdHead === '/editar-datos'
         ? `[ORDEN AUTORIZADA DE CIRUGÍA DE DATOS EN MIXNET]: ${cmdArgs}`
         : text;
@@ -659,74 +697,113 @@
         await pollTaskResult(taskId);
       } else {
         // ================================================================
-        // 2. MODO AGENTE DE INGENIERÍA DE CÓDIGO (Claude Code / Hermes)
+        // 2. BUCLE AUTÓNOMO MULTI-PASO (ReAct + GateGuard + Terminal Ops)
         // ================================================================
-        appendTerminal('🧠 Analizando código y estructura con el Agente de Ingeniería...', 'info');
+        const agentSystemPrompt = `Eres OpenCode v4 (estilo Claude Code / Hermes), el Ingeniero de Software Autónomo de JJ Paper.
+Operas mediante un bucle ReAct de hasta 4 pasos (Investigar ➔ Ejecutar/Editar ➔ Verificar ➔ Responder).
 
-        const agentSystemPrompt = `Eres OpenCode (estilo Claude Code / Hermes), el Agente de Ingeniería de Código y Datos Soberano de JJ Paper.
-Tu misión es doble:
-1. Entender tanto el código de MixNet ERP (Clipper/Harbour .PRG, tablas .DBF, índices .NTX en '\\\\servidor\\MIX11\\comp01' o 'M:\\MIX11\\comp01') como el código de JJ Paper Web (JS, HTML, Node.js y PostgreSQL 16 en el VPS) y hacerlos compatibles.
-2. Mientras el demonio de sincronización automática cuida que las cotizaciones y pedidos fluyan sin corromper nada, TÚ eres el Agente de Ingeniería: si el usuario te pide expresamente inspeccionar, modificar código fuente, parchar funciones o alterar/limpiar registros en las bases .DBF de MixNet, TIENES AUTORIZACIÓN TOTAL para hacerlo usando tus herramientas.
+MAPA SOBERANO DEL REPOSITORIO JJ PAPER:
+- Catálogo y Precios: 'catalogo.html', 'producto.html', 'assets/js/catalog.js', 'catalogo_impreso.html', 'lista_costos.html'.
+- Correo, WhatsApp e IA (Anaiel): 'admin/correo.html', 'admin/campanas-email.html', 'admin/difusion.html', 'admin/whatsapp.html', 'assets/js/gemini-client.js', 'wa-server/src/outbox.js', 'wa-server/src/email.js'.
+- Ventas, POS y Cotizador: 'admin/cotizaciones.html', 'admin/cotizador.html', 'admin/pos.html', 'vendedor/cotizador.html', 'vendedor/pos.html', 'comprobante.html'.
+- Puente MixNet ERP (comp01): 'jj-mixnet-agent/agent.js', 'jj-mixnet-agent/dbf-driver.js', 'jj-mixnet-agent/sync-documents.js', 'jj-mixnet-agent/sync-catalog.js', 'jj-mixnet-agent/task-runner.js', 'admin/mixnet.html'.
+- Deploy a Producción (Cloudflare Pages): acción "deploy_changes" ejecuta 'bash build.sh' + git commit + git push origin main.
+- Tablas MixNet en 'comp01': MXENCCOT.DBF, MXRENCOT.DBF, MXENCPED.DBF, MXRENPED.DBF, MXCTACLI.DBF, MXCTAINV.DBF, MXNUMCOT.DBF, MXNUMPED.DBF.
 
-HERRAMIENTAS Y ACCIONES NATIVAS ("action"):
-- "sales_today": Resumen de ventas (pedidos y cotizaciones) de hoy en MixNet desglosado por vendedor.
-- "list_users": Consultar usuarios, vendedores y permisos de MixNet.
-- "audit_health": Correlativos actuales (MXNUMCOT, MXNUMPED) y conteo de registros.
-- "inspect_dbf": Inspeccionar estructura binaria, columnas y registros de una tabla DBF. Usa "table": "MXCTAINV" (o "LIST" para listar todas).
-- "explore_mixnet": Buscar código fuente (.PRG, .CH, .JS) o columnas DBF. Usa "query": "término".
-- "schema_bridge": Comparar tabla DBF de MixNet con tabla PostgreSQL de JJ Paper. Usa "dbf": "MXCTACLI", "pgTable": "jjp_customers".
-- "read_file": Leer un archivo del proyecto o de MixNet. Usa "path": "ruta/al/archivo".
-- "patch_file": Modificar código fuente con respaldo .bak y verificación de sintaxis automática. Usa "path": "...", "target": "bloque exacto actual", "replacement": "bloque nuevo".
-- "mutate_dbf": Cirugía autorizada sobre registros de un archivo .DBF en MixNet (crea snapshot .BAK automático y reindexa .NTX). Usa "table": "MXENCCOT", "whereField": "numcot", "whereValue": "00053628", "updates": {"nomcli": "NUEVO NOMBRE"}, o "deleteRecord": true / "undeleteRecord": true.
-- "exec_python": Script Python autónomo para consultas avanzadas o cruces de datos sobre los DBF en '\\\\servidor\\MIX11\\comp01' o 'M:\\MIX11\\comp01'.
-- "exec_node": Script Node.js para consultar/modificar PostgreSQL o el puente.
+REGLA GATEGUARD (INVESTIGAR ANTES DE EDITAR):
+- NUNCA adivines el contenido de un archivo para usar "patch_file". Primero usa "read_file" o "explore_mixnet" con "isFinal": false para ver las líneas exactas, y en el siguiente paso aplica "patch_file".
+- En "exec_python", YA ESTÁ PRE-CARGADA la función nativa \`read_dbf(tabla, limit=100, backwards=True)\` y \`import dbf\` (\`dbf.Table('MXCTAINV')\`). Úsala directamente.
+
+HERRAMIENTAS DISPONIBLES ("action"):
+- "sales_today": Reporte de ventas y cotizaciones del día por vendedor.
+- "list_users": Usuarios y vendedores de MixNet.
+- "audit_health": Salud del ERP y correlativos actuales.
+- "inspect_dbf": Estructura y muestra de registros de una tabla DBF ("table": "MXCTACLI" o "LIST").
+- "explore_mixnet": Buscar texto/funciones en código MixNet o JJ Paper ("query": "texto", "scope": "both"|"mixnet"|"jjpaper").
+- "list_files": Listar archivos de una carpeta ("dir": "assets/js" | "admin" | "comp01" | ".").
+- "read_file": Leer archivo con líneas numeradas ("path": "assets/js/catalog.js", "startLine": 1, "endLine": 180).
+- "patch_file": Reemplazar bloque exacto en un archivo con backup .bak y validación node -c ("path": "...", "patchTarget": "texto original exacto", "patchReplacement": "texto nuevo").
+- "write_file": Crear o sobrescribir un archivo completo ("path": "...", "content": "...").
+- "mutate_dbf": Modificar o borrar registros en un DBF de MixNet con backup .BAK ("table": "MXENCCOT", "whereField": "numcot", "whereValue": "00053628", "updates": {"nomcli": "..."}).
+- "deploy_changes": Compilar dist/ (build.sh), hacer git commit y git push ("message": "feat: ...").
+- "exec_python": Ejecutar Python en Supervisor-PC (con \`read_dbf('MXCTAINV', limit=50)\` pre-inyectado).
+- "exec_node": Ejecutar Node.js.
 - "exec_cmd": Comando PowerShell o Bash.
 - "sync_all", "reindex_all", "create_backup", "read_logs", "direct_answer".
 
-VENDEDORES OFICIALES (CODVEN):
-002: Luis Alarcón | 004/006: Yovanni Araujo | 008: Marianela | 014: Andreina | 005: Keyder Salazar.
-
-Responde ESTRICTAMENTE un objeto JSON válido:
+FORMATO JSON OBLIGATORIO:
 {
-  "action": "sales_today" | "list_users" | "audit_health" | "inspect_dbf" | "explore_mixnet" | "schema_bridge" | "read_file" | "patch_file" | "mutate_dbf" | "exec_python" | "exec_node" | "exec_cmd" | "sync_all" | "reindex_all" | "create_backup" | "read_logs" | "direct_answer",
+  "action": "read_file" | "patch_file" | "write_file" | "list_files" | "explore_mixnet" | "inspect_dbf" | "mutate_dbf" | "sales_today" | "list_users" | "audit_health" | "deploy_changes" | "exec_python" | "exec_node" | "exec_cmd" | "sync_all" | "reindex_all" | "create_backup" | "read_logs" | "direct_answer",
+  "isFinal": true | false,
   "target": "supervisor" | "vps",
-  "table": "nombre tabla DBF si aplica",
-  "query": "término de búsqueda si aplica",
-  "dbf": "tabla DBF si aplica en schema_bridge",
-  "pgTable": "tabla postgres si aplica en schema_bridge",
-  "path": "ruta archivo si aplica en read_file o patch_file",
-  "patchTarget": "texto original si aplica en patch_file",
-  "patchReplacement": "texto nuevo si aplica en patch_file",
+  "path": "ruta archivo si aplica",
+  "dir": "directorio si aplica en list_files",
+  "startLine": 1,
+  "endLine": 180,
+  "patchTarget": "bloque original exacto (sin números de línea) si action es patch_file",
+  "patchReplacement": "bloque nuevo si action es patch_file",
+  "content": "contenido completo si action es write_file",
+  "table": "tabla DBF si aplica",
+  "query": "búsqueda si aplica",
   "whereField": "campo filtro si aplica en mutate_dbf",
   "whereValue": "valor filtro si aplica en mutate_dbf",
   "updates": {},
-  "deleteRecord": false,
   "code": "código python o node si aplica",
   "command": "comando shell si aplica",
-  "answer": "respuesta detallada si action es direct_answer",
-  "explanation": "resumen claro en 1 línea del paso técnico a ejecutar"
+  "message": "mensaje de commit si action es deploy_changes",
+  "answer": "respuesta o síntesis final para el usuario",
+  "explanation": "qué estás haciendo en este paso"
 }`;
 
-        let aiPlan = null;
-        if (typeof GeminiClient !== 'undefined' && GeminiClient.callGemini) {
-          try {
-            const rawJson = await GeminiClient.callGemini(effectivePrompt, {
-              systemInstruction: agentSystemPrompt,
-              temperature: 0.1,
-              timeoutMs: 18000
-            });
-            aiPlan = robustParseJson(rawJson);
-          } catch (e) {
-            appendTerminal(`Aviso IA: No se pudo interpretar el plan con Gemini (${e.message}).`, 'info');
-          }
-        }
+        let stepHistory = [];
+        const maxSteps = 4;
 
-        if (aiPlan && aiPlan.action) {
-          appendTerminal(`🤖 Plan de Ingeniería: ${aiPlan.explanation || aiPlan.action}`, 'info');
+        for (let step = 1; step <= maxSteps; step++) {
+          appendTerminal(step === 1 ? '🧠 Analizando con OpenCode...' : `🔄 Paso ${step}/${maxSteps}: Continuando flujo autónomo...`, 'info');
+
+          const contextBlock = stepHistory.length > 0
+            ? `\n\nHISTORIAL DE PASOS EJECUTADOS EN ESTA TAREA:\n${stepHistory.map((h, idx) => `[Paso ${idx + 1}] Acción: ${h.action} (${h.explanation})\nObservación devuelta:\n${h.observation}`).join('\n\n')}\n\nCon base en la observación real anterior, ejecuta el siguiente paso necesario o responde con "action": "direct_answer" y "isFinal": true si ya terminaste.`
+            : '';
+
+          const memoryBlock = sessionMemory.length > 0
+            ? `\nCONTEXTO RECIENTE DE LA SESIÓN:\n${sessionMemory.slice(-3).join('\n')}\n`
+            : '';
+
+          const fullPrompt = `${memoryBlock}SOLICITUD DEL USUARIO: ${effectivePrompt}${contextBlock}`;
+
+          let aiPlan = null;
+          if (typeof GeminiClient !== 'undefined' && GeminiClient.callGemini) {
+            try {
+              const rawJson = await GeminiClient.callGemini(fullPrompt, {
+                systemInstruction: agentSystemPrompt,
+                temperature: 0.1,
+                timeoutMs: 15000
+              });
+              aiPlan = robustParseJson(rawJson);
+            } catch (e) {
+              appendTerminal(`Aviso IA en paso ${step}: ${e.message}`, 'info');
+            }
+          }
+
+          if (!aiPlan || !aiPlan.action) {
+            if (step === 1) {
+              const looksLikeShellCmd = /^(git\b|dir\b|ls\b|cd\b|python\b|node\b|pm2\b|npm\b|Get-|curl\b|cat\b|echo\b)/i.test(effectivePrompt);
+              if (looksLikeShellCmd) {
+                const taskId = await enqueueTask('exec_cmd', { command: effectivePrompt });
+                await pollTaskResult(taskId);
+              } else {
+                appendTerminal(`⚠️ No se pudo interpretar el plan en este intento. Intenta nuevamente o usa "/" para elegir un comando directo.`, 'err');
+              }
+            }
+            break;
+          }
+
+          appendTerminal(`🤖 [Paso ${step}] ${aiPlan.explanation || aiPlan.action}`, 'info');
 
           if (aiPlan.action === 'direct_answer') {
-            appendTerminal(aiPlan.answer || aiPlan.explanation || 'Consulta procesada.', 'ok');
-            return;
+            appendTerminal(aiPlan.answer || aiPlan.explanation || 'Tarea completada.', 'ok');
+            sessionMemory.push(`Usuario: ${text} -> Agente: ${(aiPlan.answer || aiPlan.explanation || '').slice(0, 200)}`);
+            break;
           }
 
           const payload = {
@@ -734,17 +811,21 @@ Responde ESTRICTAMENTE un objeto JSON válido:
             explanation: aiPlan.explanation,
             table: aiPlan.table,
             query: aiPlan.query,
+            dir: aiPlan.dir,
             dbf: aiPlan.dbf,
             pgTable: aiPlan.pgTable,
             path: aiPlan.path,
-            target: aiPlan.patchTarget || aiPlan.target || activeTarget,
+            startLine: aiPlan.startLine,
+            endLine: aiPlan.endLine,
             replacement: aiPlan.patchReplacement,
+            content: aiPlan.content,
             whereField: aiPlan.whereField,
             whereValue: aiPlan.whereValue,
             updates: aiPlan.updates,
             deleteRecord: aiPlan.deleteRecord,
             code: aiPlan.code,
             command: aiPlan.command,
+            message: aiPlan.message,
             label: aiPlan.label || 'ai_console'
           };
 
@@ -753,16 +834,30 @@ Responde ESTRICTAMENTE un objeto JSON válido:
           }
 
           const taskId = await enqueueTask(aiPlan.action, payload);
-          await pollTaskResult(taskId);
-        } else {
-          const looksLikeShellCmd = /^(git\b|dir\b|ls\b|cd\b|python\b|node\b|pm2\b|npm\b|Get-|curl\b|cat\b|echo\b)/i.test(effectivePrompt);
-          if (looksLikeShellCmd) {
-            appendTerminal(`Ejecutando comando directo en terminal...`, 'info');
-            const taskId = await enqueueTask('exec_cmd', { command: effectivePrompt });
-            await pollTaskResult(taskId);
-          } else {
-            appendTerminal(`⚠️ No se pudo procesar la instrucción con la IA en este intento.`, 'err');
-            appendTerminal(`Tip: Escribe "/" para elegir un comando directo de la lista desplegable o intenta nuevamente.`, 'info');
+          const taskRes = await pollTaskResult(taskId, 45, true);
+
+          const obsText = summarizeObservation(taskRes);
+          stepHistory.push({
+            action: aiPlan.action,
+            explanation: aiPlan.explanation || '',
+            observation: obsText
+          });
+
+          const hadError = !taskRes || taskRes.ok === false || (taskRes.exitCode !== undefined && taskRes.exitCode !== 0);
+
+          // Si el paso fue exitoso y la IA marcó isFinal: true (y no es solo una lectura preparatoria para editar), cerramos
+          const isReadOnlyPrep = (aiPlan.action === 'read_file' || aiPlan.action === 'list_files' || aiPlan.action === 'explore_mixnet') && aiPlan.isFinal === false;
+          if (!hadError && aiPlan.isFinal !== false && !isReadOnlyPrep) {
+            if (aiPlan.answer) {
+              appendTerminal(aiPlan.answer, 'ok');
+            }
+            sessionMemory.push(`Usuario: ${text} -> Acción ejecutada: ${aiPlan.action} (${aiPlan.explanation || 'OK'})`);
+            break;
+          }
+
+          // Si hubo error en un script o parche y aún quedan pasos, el bucle continúa automáticamente para auto-reparar
+          if (hadError && step < maxSteps) {
+            appendTerminal(`🔧 Auto-recuperación activada: Analizando causa del fallo para corregir en el paso ${step + 1}...`, 'info');
           }
         }
       }
@@ -846,8 +941,8 @@ Responde ESTRICTAMENTE un objeto JSON válido:
   }
 
   document.addEventListener('DOMContentLoaded', () => {
-    appendTerminal('Inicializando OpenCode v3 (Sincronizador 24/7 + Agente de Ingeniería MixNet ⇄ JJ Paper)...', 'info');
-    appendTerminal('Conexión establecida. Escribe "/" en la barra inferior para desplegar todos los comandos y skills.', 'ok');
+    appendTerminal('Inicializando OpenCode v4 (Autonomous ReAct Harness + GateGuard + Sincronizador 24/7)...', 'info');
+    appendTerminal('Escribe "/" para desplegar los 20 comandos y skills, o pide cualquier cambio en el código de JJ Paper / MixNet.', 'ok');
 
     const inp = inputEl();
     if (inp) {

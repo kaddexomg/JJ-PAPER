@@ -313,7 +313,7 @@ async function main() {
   // 1. Iniciar Micro-API local
   startMicroApi();
 
-  // 2. Bucle de Tareas Agénticas OpenCode (cada 3 segundos)
+  // 2. Bucle de Tareas Agénticas OpenCode (cada 1 segundo para respuesta instantánea)
   // Solo actúa cuando se solicita una tarea explícita en jjp_mixnet_tasks (Cero impacto en reposo)
   setInterval(async () => {
     if (!activeCompDir) {
@@ -325,7 +325,7 @@ async function main() {
       }
     }
     await processAgentTasks(activeCompDir);
-  }, 3000);
+  }, 1000);
 
   // 3. Sincronización continua de ventas y cotizaciones físicas de MixNet hacia la web (cada 15 segundos)
   // Lee de forma ultraliviana (basada en mtime y numRecords) las nuevas emisiones en mostrador y las refleja en Supabase

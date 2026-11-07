@@ -299,8 +299,93 @@ export async function processAgentTasks(compDir) {
           const repoRoot = path.resolve(__dirname, '..');
           const scratchDir = path.join(repoRoot, 'scratch');
           if (!fs.existsSync(scratchDir)) fs.mkdirSync(scratchDir, { recursive: true });
+
+          // Proveer módulo nativo dbf.py en scratch/ para que 'import dbf' o 'read_dbf()' jamás fallen
+          const dbfShimPath = path.join(scratchDir, 'dbf.py');
+          const safeCompDir = (compDir || '\\\\servidor\\MIX11\\comp01').replace(/\\/g, '\\\\');
+          const dbfShimCode = `# Native zero-dependency DBF reader shim for JJ Paper OpenCode
+import os, struct
+
+COMP01_DIR = "${safeCompDir}"
+
+def _resolve_path(name):
+    if os.path.exists(name): return name
+    base = name if name.upper().endswith('.DBF') else name + '.DBF'
+    for cand_dir in [COMP01_DIR, r'M:\\MIX11\\comp01', r'\\\\servidor\\MIX11\\comp01', r'M:\\comp01', r'D:\\MIX11\\comp01']:
+        p = os.path.join(cand_dir, base)
+        if os.path.exists(p): return p
+    return name
+
+class DbfRow(dict):
+    def __getattr__(self, k):
+        lk = k.lower()
+        if lk in self: return self[lk]
+        if k.upper() in self: return self[k.upper()]
+        raise AttributeError(k)
+    def __getitem__(self, k):
+        if isinstance(k, str):
+            lk = k.lower()
+            if dict.__contains__(self, lk): return dict.__getitem__(self, lk)
+            if dict.__contains__(self, k.upper()): return dict.__getitem__(self, k.upper())
+        return dict.__getitem__(self, k)
+
+class Table:
+    def __init__(self, filename, *args, **kwargs):
+        self.filepath = _resolve_path(filename)
+        self.fields = []
+        self.field_names = []
+        self._rows = None
+        self._read_header()
+    def _read_header(self):
+        if not os.path.exists(self.filepath): return
+        with open(self.filepath, 'rb') as f:
+            hdr = f.read(32)
+            self.num_records, self.header_len, self.record_len = struct.unpack('<IHH', hdr[4:12])
+            f.seek(32)
+            raw_fields = f.read(self.header_len - 32)
+            off, pos = 0, 1
+            while off + 32 <= len(raw_fields) and raw_fields[off] != 0x0D:
+                name = raw_fields[off:off+11].split(b'\\x00')[0].decode('latin1', errors='ignore').strip().lower()
+                ftype = chr(raw_fields[off+11])
+                flen = raw_fields[off+16]
+                fdec = raw_fields[off+17]
+                self.fields.append((name, ftype, flen, fdec, pos))
+                self.field_names.append(name)
+                pos += flen
+                off += 32
+    def open(self, *args, **kwargs): return self
+    def close(self): pass
+    def __enter__(self): return self
+    def __exit__(self, *args): pass
+    def __len__(self): return getattr(self, 'num_records', 0)
+    def read_rows(self, limit=None, backwards=False):
+        if not os.path.exists(self.filepath): return []
+        rows = []
+        with open(self.filepath, 'rb') as f:
+            indices = range(self.num_records - 1, -1, -1) if backwards else range(self.num_records)
+            for idx in indices:
+                f.seek(self.header_len + idx * self.record_len)
+                rec = f.read(self.record_len)
+                if not rec or len(rec) < self.record_len or rec[0] == 0x2A: continue
+                r = DbfRow(_recno=idx+1)
+                for name, ftype, flen, fdec, pos in self.fields:
+                    val = rec[pos:pos+flen].decode('latin1', errors='ignore').strip()
+                    r[name] = val
+                    r[name.upper()] = val
+                rows.append(r)
+                if limit and len(rows) >= limit: break
+        return rows
+    def __iter__(self):
+        return iter(self.read_rows())
+
+def read_dbf(table_name, limit=100, backwards=True):
+    return Table(table_name).read_rows(limit=limit, backwards=backwards)
+`;
+          fs.writeFileSync(dbfShimPath, dbfShimCode, 'utf8');
+
+          const prelude = `import sys, os\nsys.path.insert(0, r"${scratchDir.replace(/\\/g, '\\\\')}")\nfrom dbf import Table, read_dbf, COMP01_DIR\n`;
           const tmpScript = path.join(scratchDir, `agent_py_${Date.now()}.py`);
-          fs.writeFileSync(tmpScript, pyCode, 'utf8');
+          fs.writeFileSync(tmpScript, prelude + pyCode, 'utf8');
           let stdout = '';
           let stderr = '';
           let code = 0;
@@ -370,12 +455,111 @@ export async function processAgentTasks(compDir) {
           const repoRoot = path.resolve(__dirname, '..');
           const fullPath = path.isAbsolute(relPath) ? relPath : path.join(repoRoot, relPath);
           if (!fs.existsSync(fullPath)) throw new Error(`Archivo no encontrado: ${relPath}`);
-          const content = fs.readFileSync(fullPath, 'utf8');
+          const rawContent = fs.readFileSync(fullPath, 'utf8');
+          const allLines = rawContent.split(/\r?\n/);
+          const startL = Math.max(1, parseInt(payload.startLine || 1, 10));
+          const endL = Math.min(allLines.length, parseInt(payload.endLine || Math.min(allLines.length, startL + 220), 10));
+          const sliced = allLines.slice(startL - 1, endL).map((l, idx) => `${startL + idx}: ${l}`).join('\n');
           result = {
             ok: true,
             path: relPath,
-            sizeBytes: Buffer.byteLength(content, 'utf8'),
-            content: content.slice(0, 500000)
+            totalLines: allLines.length,
+            range: `${startL}-${endL}`,
+            sizeBytes: Buffer.byteLength(rawContent, 'utf8'),
+            content: sliced
+          };
+          break;
+        }
+
+        case 'list_files': {
+          const relDir = payload.dir || payload.path || '.';
+          const repoRoot = path.resolve(__dirname, '..');
+          const fullDir = (relDir === 'comp01' && compDir) ? compDir : (path.isAbsolute(relDir) ? relDir : path.join(repoRoot, relDir));
+          if (!fs.existsSync(fullDir)) throw new Error(`Directorio no encontrado: ${relDir}`);
+          const entries = fs.readdirSync(fullDir, { withFileTypes: true })
+            .filter(e => !e.name.startsWith('.') && e.name !== 'node_modules')
+            .map(e => ({
+              name: e.name,
+              type: e.isDirectory() ? 'dir' : 'file'
+            }));
+          result = {
+            ok: true,
+            dir: relDir,
+            count: entries.length,
+            stdout: entries.map(e => `${e.type === 'dir' ? '📁' : '📄'} ${e.name}`).join('\n')
+          };
+          break;
+        }
+
+        case 'write_file': {
+          const relPath = payload.path || payload.filePath;
+          if (!relPath || payload.content === undefined) throw new Error('Falta payload.path o payload.content para escribir archivo.');
+          const repoRoot = path.resolve(__dirname, '..');
+          const fullPath = path.isAbsolute(relPath) ? relPath : path.join(repoRoot, relPath);
+          const dirName = path.dirname(fullPath);
+          if (!fs.existsSync(dirName)) fs.mkdirSync(dirName, { recursive: true });
+          let bakPath = null;
+          if (fs.existsSync(fullPath)) {
+            bakPath = fullPath + '.bak';
+            fs.copyFileSync(fullPath, bakPath);
+          }
+          fs.writeFileSync(fullPath, String(payload.content), 'utf8');
+          let syntaxCheck = 'skipped';
+          if (fullPath.endsWith('.js') || fullPath.endsWith('.mjs') || fullPath.endsWith('.cjs')) {
+            try {
+              execSync(`node -c "${fullPath}"`, { timeout: 10000, encoding: 'utf8', windowsHide: true });
+              syntaxCheck = 'passed';
+            } catch (syntErr) {
+              if (bakPath && fs.existsSync(bakPath)) fs.copyFileSync(bakPath, fullPath);
+              throw new Error(`Escritura abortada: Error de sintaxis JS (${syntErr.message}).`);
+            }
+          }
+          result = {
+            ok: true,
+            path: relPath,
+            syntaxCheck,
+            backupCreated: bakPath,
+            stdout: `Archivo ${relPath} escrito y verificado (${syntaxCheck}).`
+          };
+          break;
+        }
+
+        case 'deploy_changes': {
+          log('[AGENTE] Ejecutando pipeline de Build y Deploy (build.sh + git commit + push)...');
+          const repoRoot = path.resolve(__dirname, '..');
+          const commitMsg = payload.message || payload.commitMessage || 'feat(opencode): actualización autónoma desde consola agéntica';
+          const stepsLog = [];
+          try {
+            // 1. Empaquetar dist/ si existe bash
+            try {
+              const bOut = execSync('bash build.sh', { cwd: repoRoot, encoding: 'utf8', timeout: 30000, windowsHide: true });
+              stepsLog.push(`[BUILD] ${bOut.trim().split('\n')[0] || 'dist/ actualizado'}`);
+            } catch (_) {
+              stepsLog.push('[BUILD] build.sh omitido en este entorno');
+            }
+            // 2. Git status & commit
+            const stOut = execSync('git status -s', { cwd: repoRoot, encoding: 'utf8', timeout: 10000, windowsHide: true }).trim();
+            if (!stOut) {
+              stepsLog.push('[GIT] No hay cambios locales pendientes para comitear.');
+            } else {
+              execSync('git add -A', { cwd: repoRoot, encoding: 'utf8', timeout: 10000, windowsHide: true });
+              const cOut = execSync(`git commit -m "${commitMsg.replace(/"/g, '\\"')}"`, { cwd: repoRoot, encoding: 'utf8', timeout: 15000, windowsHide: true });
+              stepsLog.push(`[COMMIT] ${cOut.trim()}`);
+            }
+            // 3. Git push
+            const gitEnv = { ...process.env, GIT_TERMINAL_PROMPT: '0' };
+            try {
+              const pOut = execSync('git push origin main', { cwd: repoRoot, encoding: 'utf8', timeout: 25000, windowsHide: true, env: gitEnv });
+              stepsLog.push(`[PUSH] Cambios publicados en origin/main (Cloudflare Pages desplegando): ${pOut.trim() || 'OK'}`);
+            } catch (pushErr) {
+              stepsLog.push(`[AVISO PUSH] Commit guardado localmente. Para push directo desde este nodo configure credencial Git (${pushErr.message.split('\n')[0]}).`);
+            }
+          } catch (depErr) {
+            throw new Error(`Fallo en pipeline deploy: ${depErr.message}`);
+          }
+          result = {
+            ok: true,
+            stdout: stepsLog.join('\n')
           };
           break;
         }

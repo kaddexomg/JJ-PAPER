@@ -221,13 +221,13 @@
     if (!GEMINI_KEYS || GEMINI_KEYS.length === 0) {
       try { await syncKeysFromSettings(); } catch (_) {}
     }
-    const targetModel = (!model || typeof model !== 'string' || model === 'gemini-2.5-flash' || model === 'gemini-2.0-flash') ? 'gemini-3.5-flash' : model;
+    const targetModel = (!model || typeof model !== 'string' || model === 'gemini-2.5-flash' || model === 'gemini-2.0-flash') ? 'gemini-3.5-flash-lite' : model;
 
     // 1. Intentar primero mediante el proxy Cloudflare Pages (/api/ai) para evadir bloqueo geográfico IP Venezuela
     if (_proxyAvailable && typeof window !== 'undefined' && window.location && window.location.protocol.startsWith('http')) {
       try {
         const proxyCtrl = new AbortController();
-        const proxyTimer = setTimeout(() => proxyCtrl.abort(), 18000);
+        const proxyTimer = setTimeout(() => proxyCtrl.abort(), 8000);
         const proxyRes = await fetch('/api/ai', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -236,7 +236,8 @@
             systemInstruction,
             temperature,
             maxTokens,
-            model: targetModel
+            model: targetModel,
+            key: getCurrentKey()
           }),
           signal: proxyCtrl.signal
         });
@@ -244,11 +245,11 @@
         if (proxyRes.ok) {
           const pData = await proxyRes.json();
           if (pData && pData.text) return String(pData.text).trim();
-        } else if (proxyRes.status === 404 || proxyRes.status === 405) {
-          _proxyAvailable = false; // En servidor local estático sin Cloudflare Function
+        } else if (proxyRes.status >= 400) {
+          _proxyAvailable = false; // Desactivar si no hay Function activa o falla para no añadir latencia
         }
       } catch (_) {
-        // Ignorar y continuar al pool directo
+        _proxyAvailable = false;
       }
     }
 
@@ -259,7 +260,7 @@
       throw new Error('Servicio directo bloqueado por región o llaves agotadas; activando motor dinámico local.');
     }
 
-    const modelsToTry = [targetModel, 'gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3-flash-preview'].filter((v, i, a) => Boolean(v) && a.indexOf(v) === i);
+    const modelsToTry = [targetModel, 'gemini-3.5-flash-lite', 'gemini-flash-lite-latest', 'gemini-3.5-flash'].filter((v, i, a) => Boolean(v) && a.indexOf(v) === i);
     const timeoutMs = (options && typeof options === 'object' && options.timeoutMs) || (fallbackModel && typeof fallbackModel === 'object' && fallbackModel.timeoutMs) || 18000;
     let lastError = null;
 

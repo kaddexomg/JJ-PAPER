@@ -235,6 +235,64 @@ function startMicroApi() {
       return;
     }
 
+    if (url.pathname === '/workstation/manifest' && req.method === 'GET') {
+      try {
+        const scope = url.searchParams.get('scope') || 'comp01';
+        const mixRoot = activeCompDir ? path.dirname(activeCompDir) : 'M:\\MIX11';
+        const baseDir = scope === 'vdos' ? 'C:\\vDos' : (scope === 'mixnet' ? mixRoot : activeCompDir);
+        if (!baseDir || !fs.existsSync(baseDir)) {
+          res.writeHead(404, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: false, error: `Directorio no disponible para scope=${scope}` }));
+          return;
+        }
+        const entries = fs.readdirSync(baseDir, { withFileTypes: true });
+        const files = [];
+        for (const ent of entries) {
+          if (!ent.isFile()) continue;
+          const n = ent.name;
+          if (scope === 'comp01' && !/\.(dbf|dbt|ntx|mem|ext|ini|cfg|txt)$/i.test(n)) continue;
+          if (scope === 'mixnet' && !/\.(exe|dll|ini|bat|mem|ext|dbf|dbt|ntx|cam|cjo|inf|mac|ord|rep|var|lin|prn|txt|cfg)$/i.test(n)) continue;
+          try {
+            const st = fs.statSync(path.join(baseDir, n));
+            files.push({ name: n, size: st.size, mtimeMs: Math.round(st.mtimeMs) });
+          } catch (_) {}
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true, scope, count: files.length, files }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: err.message }));
+      }
+      return;
+    }
+
+    if (url.pathname === '/workstation/file' && req.method === 'GET') {
+      try {
+        const scope = url.searchParams.get('scope') || 'comp01';
+        const name = path.basename(url.searchParams.get('name') || '');
+        if (!name) throw new Error('Falta parámetro name');
+        const mixRoot = activeCompDir ? path.dirname(activeCompDir) : 'M:\\MIX11';
+        const baseDir = scope === 'vdos' ? 'C:\\vDos' : (scope === 'mixnet' ? mixRoot : activeCompDir);
+        const filePath = path.join(baseDir, name);
+        if (!fs.existsSync(filePath)) {
+          res.writeHead(404);
+          res.end('Not found');
+          return;
+        }
+        const st = fs.statSync(filePath);
+        res.writeHead(200, {
+          'Content-Type': 'application/octet-stream',
+          'Content-Length': st.size,
+          'X-Mtime-Ms': String(Math.round(st.mtimeMs))
+        });
+        fs.createReadStream(filePath).pipe(res);
+      } catch (err) {
+        res.writeHead(500);
+        res.end(err.message);
+      }
+      return;
+    }
+
     if (url.pathname === '/logs' && req.method === 'GET') {
       const logFile = path.join(__dirname, 'logs', 'agent.log');
       let lines = [];

@@ -167,7 +167,8 @@ function buildRecordBuffer(struct, values) {
 let clientLookupCache = {
   loadedAt: 0,
   byCif: new Map(),
-  byName: new Map()
+  byName: new Map(),
+  byCod: new Map()
 };
 
 let inventoryLookupCache = {
@@ -235,11 +236,7 @@ function readExistingDocNumbers(dbfPath, fieldName) {
   return set;
 }
 
-/**
- * Resuelve el código oficial de cliente (CODCLI) en MXCTACLI.DBF.
- * Si el cliente no existe en el maestro, retorna '000-001' (Cuenta Recuperada).
- */
-export function resolveMixnetClientCode(compDir, rif, clientName) {
+function ensureClientCache(compDir) {
   const now = Date.now();
   if (!clientLookupCache.loadedAt || (now - clientLookupCache.loadedAt > 300000)) {
     try {
@@ -249,10 +246,15 @@ export function resolveMixnetClientCode(compDir, rif, clientName) {
         const rows = readDbfRows(sCli, ['codcli', 'nomcli', 'cif'], sCli.numRecords, false);
         const byCif = new Map();
         const byName = new Map();
+        const byCod = new Map();
 
         for (const r of rows) {
           const cod = String(r.codcli || '').trim();
           if (!cod) continue;
+          byCod.set(cod, {
+            nomcli: String(r.nomcli || '').trim(),
+            cif: String(r.cif || '').trim()
+          });
           if (r.cif) {
             const normCif = String(r.cif).replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
             if (normCif) byCif.set(normCif, cod);
@@ -262,12 +264,29 @@ export function resolveMixnetClientCode(compDir, rif, clientName) {
             if (normNom) byName.set(normNom, cod);
           }
         }
-        clientLookupCache = { loadedAt: now, byCif, byName };
+        clientLookupCache = { loadedAt: now, byCif, byName, byCod };
       }
     } catch (err) {
       log(`Aviso cargando maestro de clientes MXCTACLI: ${err.message}`, 'WARN');
     }
   }
+}
+
+export function resolveMixnetClientByCodcli(compDir, codcli) {
+  ensureClientCache(compDir);
+  const cleanCod = String(codcli || '').trim();
+  if (cleanCod && clientLookupCache.byCod.has(cleanCod)) {
+    return clientLookupCache.byCod.get(cleanCod);
+  }
+  return null;
+}
+
+/**
+ * Resuelve el código oficial de cliente (CODCLI) en MXCTACLI.DBF.
+ * Si el cliente no existe en el maestro, retorna '000-001' (Cuenta Recuperada).
+ */
+export function resolveMixnetClientCode(compDir, rif, clientName) {
+  ensureClientCache(compDir);
 
   // 1. Buscar por CIF / RIF normalizado (coincidencia exacta)
   if (rif) {

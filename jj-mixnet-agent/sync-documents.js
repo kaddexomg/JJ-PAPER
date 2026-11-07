@@ -11,7 +11,7 @@
 
 import path from 'node:path';
 import fs from 'node:fs';
-import { readDbfStruct, readDbfRows, injectQuoteToMixnet, injectOrderToMixnet } from './dbf-driver.js';
+import { readDbfStruct, readDbfRows, injectQuoteToMixnet, injectOrderToMixnet, resolveMixnetClientByCodcli } from './dbf-driver.js';
 import { sbGet, sbPost, sbPatch } from './supabase-client.js';
 import { SELLER_CODVEN_TO_PROFILE, PROFILE_ID_TO_CODVEN, log } from './config.js';
 
@@ -138,8 +138,9 @@ export async function importMixnetDocuments(compDir) {
             });
           }
 
-          const clientName = String(r.nomcli || 'Cliente MixNet').trim();
-          const rif = String(r.cif || '').trim() || null;
+          const cliInfo = resolveMixnetClientByCodcli(compDir, r.cliente);
+          const clientName = String(r.nomcli || cliInfo?.nomcli || r.cliente || 'Cliente MixNet').trim();
+          const rif = String(r.cif || cliInfo?.cif || '').trim() || null;
           const customerId = await resolveMixnetCustomerId(rif, clientName);
 
           const payload = {
@@ -255,8 +256,9 @@ export async function importMixnetDocuments(compDir) {
             });
           }
 
-          const clientName = String(r.nomcli || 'Cliente MixNet').trim();
-          const rif = String(r.cif || '').trim() || null;
+          const cliInfo = resolveMixnetClientByCodcli(compDir, r.cliente);
+          const clientName = String(r.nomcli || cliInfo?.nomcli || r.cliente || 'Cliente MixNet').trim();
+          const rif = String(r.cif || cliInfo?.cif || '').trim() || null;
           const customerId = await resolveMixnetCustomerId(rif, clientName);
 
           const payload = {

@@ -14,7 +14,7 @@ import { syncCatalogFromMixnet } from './sync-catalog.js';
 import { syncSuppliersFromMixnet } from './sync-suppliers.js';
 import { importMixnetDocuments, exportPendingDocumentsToMixnet } from './sync-documents.js';
 import { reindexNtx } from './ntx-builder.js';
-import { injectQuoteToMixnet, injectOrderToMixnet, readDbfStruct, readDbfRows } from './dbf-driver.js';
+import { injectQuoteToMixnet, injectOrderToMixnet, readDbfStruct, readDbfRows, resolveMixnetClientByCodcli } from './dbf-driver.js';
 import { reconcileClients, getClientsDiscrepancies, createBackup, rollbackBackup } from './client-reconciler.js';
 import { getMixnetUsers, updateMixnetUserPermissions } from './mixnet-usuar.js';
 import { SELLER_CODVEN_TO_PROFILE, PROFILE_ID_TO_CODVEN, log } from './config.js';
@@ -455,7 +455,8 @@ export async function processAgentTasks(compDir) {
           const dayOrders = pedRows.filter(r => r.emision === targetDate && r.cliente !== '00-000').map(r => {
             const usd = normUsd(r.tot_ped, r.cambio, r.moneda);
             const seller = SELLER_CODVEN_TO_PROFILE[r.codven]?.name || `Vendedor ${r.codven || 'S/A'}`;
-            return { num: r.numped, client: r.nomcli || r.cliente, codven: r.codven, seller, total_usd: usd, status: r.estatus };
+            const cliInfo = resolveMixnetClientByCodcli(compDir, r.cliente);
+            return { num: r.numped, client: r.nomcli || cliInfo?.nomcli || r.cliente, codven: r.codven, seller, total_usd: usd, status: r.estatus };
           });
 
           const dayQuotes = cotRows.filter(r => r.emision === targetDate && r.cliente !== '00-000').map(r => {

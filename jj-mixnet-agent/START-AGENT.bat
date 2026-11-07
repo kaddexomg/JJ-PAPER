@@ -1,7 +1,7 @@
 @echo off
 title JJ-MIXNET-AGENT — Demonio Autonomo de Sincronizacion MixNet ERP
 cd /d "%~dp0"
-set "PATH=C:\Program Files\nodejs;C:\Program Files (x86)\nodejs;C:\Program Files\Git\cmd;C:\Windows\System32;C:\Windows;%PATH%"
+set "PATH=C:\Users\Supervisor\AppData\Local\Python\bin;C:\Program Files\nodejs;C:\Program Files (x86)\nodejs;C:\Program Files\Git\cmd;C:\Windows\System32;C:\Windows;%PATH%"
 set "GIT_TERMINAL_PROMPT=0"
 set "SUPABASE_URL_CORE=http://100.89.82.36"
 

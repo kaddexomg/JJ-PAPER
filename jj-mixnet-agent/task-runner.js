@@ -386,11 +386,23 @@ def read_dbf(table_name, limit=100, backwards=True):
           const prelude = `import sys, os\nsys.path.insert(0, r"${scratchDir.replace(/\\/g, '\\\\')}")\nfrom dbf import Table, read_dbf, COMP01_DIR\n`;
           const tmpScript = path.join(scratchDir, `agent_py_${Date.now()}.py`);
           fs.writeFileSync(tmpScript, prelude + pyCode, 'utf8');
+          const pyCandidates = [
+            'C:\\Users\\Supervisor\\AppData\\Local\\Python\\bin\\python.exe',
+            process.env.LOCALAPPDATA ? path.join(process.env.LOCALAPPDATA, 'Python', 'bin', 'python.exe') : '',
+            'C:\\Python312\\python.exe',
+            'C:\\Python311\\python.exe',
+            'C:\\Python310\\python.exe'
+          ].filter(Boolean);
+          let pyBin = 'python';
+          for (const cand of pyCandidates) {
+            if (fs.existsSync(cand)) { pyBin = `"${cand}"`; break; }
+          }
+
           let stdout = '';
           let stderr = '';
           let code = 0;
           try {
-            stdout = execSync(`python "${tmpScript}"`, {
+            stdout = execSync(`${pyBin} "${tmpScript}"`, {
               cwd: repoRoot,
               encoding: 'utf8',
               timeout: payload.timeout || 45000,
@@ -426,7 +438,7 @@ def read_dbf(table_name, limit=100, backwards=True):
           let stderr = '';
           let code = 0;
           try {
-            stdout = execSync(`node "${tmpScript}"`, {
+            stdout = execSync(`"${process.execPath}" "${tmpScript}"`, {
               cwd: repoRoot,
               encoding: 'utf8',
               timeout: payload.timeout || 45000,

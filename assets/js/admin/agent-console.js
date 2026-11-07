@@ -1,13 +1,11 @@
 /* ======================================================================
-   JJ Paper — Consola Agéntica OpenCode (Frontend Client)
+   JJ Paper — Consola Agéntica OpenCode v3 (Claude Code / Hermes Style)
    assets/js/admin/agent-console.js
    ----------------------------------------------------------------------
-   Permite interactuar interactivamente con el motor agéntico en:
-   - Supervisor-PC (Windows LAN · M:\comp01 · Python/Node)
-   - VPS Soberano (Ubuntu 24.04 · PostgreSQL 16 · Bash/Node)
-   - Ambos simultáneamente
-   Con streaming de terminal, historial de comandos, modo Asistente IA
-   y visualizador de diffs con autoverificación.
+   Motor interactivo de doble carril:
+   1. Supervisión del Sincronizador Continuo 24/7 (Incorruptible)
+   2. Agente de Ingeniería de Código y Cirugía Autorizada (MixNet ⇄ JJ Paper)
+   Incluye Paleta Flotante de Comandos Slash (/), Skills Diarios y Diffs.
    ====================================================================== */
 
 (function () {
@@ -17,10 +15,127 @@
   let historyCursor = -1;
   let isExecuting = false;
 
+  // Estado del menú desplegable Slash (/)
+  let slashMenuOpen = false;
+  let slashFiltered = [];
+  let slashSelectedIndex = 0;
+
+  const SLASH_COMMANDS = [
+    {
+      cmd: '/ventas-hoy',
+      arg: '',
+      cat: 'Skill Diario',
+      desc: 'Resumen en vivo de pedidos y cotizaciones emitidas hoy en tienda por cada vendedor (CODVEN).'
+    },
+    {
+      cmd: '/status',
+      arg: '',
+      cat: 'Sincronización',
+      desc: 'Estado del puente 24/7, salud del ERP y correlativos actuales de Cotizaciones y Pedidos.'
+    },
+    {
+      cmd: '/sync',
+      arg: '',
+      cat: 'Sincronización',
+      desc: 'Fuerza un barrido inmediato de sincronización bidireccional (cotizaciones, pedidos y catálogo).'
+    },
+    {
+      cmd: '/users',
+      arg: '',
+      cat: 'Operación',
+      desc: 'Lista todos los vendedores, usuarios de caja y niveles de acceso en MixNet.'
+    },
+    {
+      cmd: '/auditar-clientes',
+      arg: '',
+      cat: 'Skill Diario',
+      desc: 'Detecta discrepancias o clientes nuevos en MXCTACLI.DBF pendientes de conciliar con la web.'
+    },
+    {
+      cmd: '/conciliar-clientes',
+      arg: '',
+      cat: 'Skill Diario',
+      desc: 'Sincroniza y concilia automáticamente las fichas de clientes entre MixNet y PostgreSQL.'
+    },
+    {
+      cmd: '/inspeccionar-dbf',
+      arg: '[TABLA o LIST]',
+      cat: 'Ingeniería Código',
+      desc: 'Radiografía completa de una tabla DBF (estructura binaria, columnas, bytes y últimos registros).'
+    },
+    {
+      cmd: '/explorar-mixnet',
+      arg: '[TÉRMINO]',
+      cat: 'Ingeniería Código',
+      desc: 'Busca funciones, variables o columnas dentro del código fuente (.PRG/.DBF) de MixNet y JJ Paper.'
+    },
+    {
+      cmd: '/compatibilizar',
+      arg: '[DBF] [TABLA_WEB]',
+      cat: 'Ingeniería Código',
+      desc: 'Compara el esquema de una tabla DBF de MixNet contra una tabla PostgreSQL de JJ Paper.'
+    },
+    {
+      cmd: '/leer-archivo',
+      arg: '[RUTA]',
+      cat: 'Ingeniería Código',
+      desc: 'Lee el código fuente de cualquier archivo de MixNet o del repositorio JJ Paper.'
+    },
+    {
+      cmd: '/editar-datos',
+      arg: '[INSTRUCCIÓN]',
+      cat: 'Cirugía MixNet',
+      desc: 'Ordena al agente modificar, corregir o eliminar registros específicos dentro de un DBF (con .BAK previo).'
+    },
+    {
+      cmd: '/reindex',
+      arg: '',
+      cat: 'Seguridad ERP',
+      desc: 'Reconstruye en caliente los 10 índices B-Tree (.NTX) de Clipper sin bloquear las 5 cajas.'
+    },
+    {
+      cmd: '/backup',
+      arg: '[ETIQUETA]',
+      cat: 'Seguridad ERP',
+      desc: 'Crea un snapshot sellado (.BAK) en comp01/backups/ antes de hacer cambios de código o datos.'
+    },
+    {
+      cmd: '/snapshots',
+      arg: '',
+      cat: 'Seguridad ERP',
+      desc: 'Lista todos los respaldos (.BAK) disponibles en comp01/backups/ con su fecha y tamaño.'
+    },
+    {
+      cmd: '/rollback',
+      arg: '[SNAPSHOT]',
+      cat: 'Seguridad ERP',
+      desc: 'Restaura inmediatamente las tablas DBF desde un snapshot (.BAK) previo.'
+    },
+    {
+      cmd: '/logs',
+      arg: '',
+      cat: 'Diagnóstico',
+      desc: 'Muestra en pantalla las últimas 60 líneas del log silencioso del agente en Supervisor-PC.'
+    },
+    {
+      cmd: '/update-agent',
+      arg: '',
+      cat: 'Control Remoto',
+      desc: 'Actualiza el código del agente en Supervisor-PC (git fetch/reset) y lo reinicia en modo silencioso.'
+    },
+    {
+      cmd: '/clear',
+      arg: '',
+      cat: 'Consola',
+      desc: 'Limpia toda la pantalla de la terminal.'
+    }
+  ];
+
   const terminalEl = () => document.getElementById('agTerminalOutput');
   const inputEl = () => document.getElementById('agCommandInput');
   const targetLabelEl = () => document.getElementById('agTargetLabel');
   const execBtnEl = () => document.getElementById('agExecBtn');
+  const slashMenuEl = () => document.getElementById('agSlashMenu');
 
   function appendTerminal(text, type = 'info') {
     const term = terminalEl();
@@ -29,12 +144,13 @@
     const line = document.createElement('div');
     line.className = `term-line term-${type}`;
     const time = new Date().toLocaleTimeString();
-    
+
     let prefix = `[${time}] `;
     if (type === 'cmd') prefix += '❯ ';
     else if (type === 'out') prefix += '  ';
     else if (type === 'err') prefix += '✖ ';
     else if (type === 'ok') prefix += '✔ ';
+    else if (type === 'diff-add' || type === 'diff-del') prefix = '  ';
     else prefix += 'ℹ ';
 
     line.textContent = prefix + text;
@@ -42,12 +158,133 @@
     term.scrollTop = term.scrollHeight;
   }
 
+  function appendDiffBlock(diffText) {
+    if (!diffText) return;
+    const lines = String(diffText).split('\n');
+    appendTerminal('─── Diff de Código Aplicado ───', 'info');
+    for (const l of lines) {
+      if (l.startsWith('+')) appendTerminal(l, 'diff-add');
+      else if (l.startsWith('-')) appendTerminal(l, 'diff-del');
+      else appendTerminal(l, 'out');
+    }
+  }
+
   function clearTerminal() {
     const term = terminalEl();
     if (term) term.innerHTML = '';
-    appendTerminal('Terminal reiniciada. Listo para recibir instrucciones.', 'info');
+    appendTerminal('Terminal reiniciada. Escribe "/" para desplegar la paleta de comandos y skills.', 'info');
   }
   window.agClearTerminal = clearTerminal;
+
+  // ====================================================================
+  // Paleta Desplegable de Comandos Slash (Estilo Claude Code)
+  // ====================================================================
+  function updateSlashMenu() {
+    const inp = inputEl();
+    const menu = slashMenuEl();
+    if (!inp || !menu) return;
+
+    const raw = inp.value;
+    if (!raw.startsWith('/')) {
+      closeSlashMenu();
+      return;
+    }
+
+    // Si ya escribió un comando con espacio y argumentos, ocultar el menú para que escriba tranquilo
+    const parts = raw.split(/\s+/);
+    const typedCmd = parts[0].toLowerCase();
+    const hasSpace = raw.includes(' ');
+
+    if (hasSpace) {
+      closeSlashMenu();
+      return;
+    }
+
+    slashFiltered = SLASH_COMMANDS.filter(item =>
+      item.cmd.toLowerCase().includes(typedCmd) ||
+      item.desc.toLowerCase().includes(typedCmd.slice(1)) ||
+      item.cat.toLowerCase().includes(typedCmd.slice(1))
+    );
+
+    if (slashFiltered.length === 0) {
+      closeSlashMenu();
+      return;
+    }
+
+    if (slashSelectedIndex >= slashFiltered.length) {
+      slashSelectedIndex = 0;
+    }
+
+    slashMenuOpen = true;
+    menu.classList.add('open');
+
+    let html = `<div class="slash-palette-hd">
+      <span>⚡ Comandos y Skills de OpenCode (${slashFiltered.length})</span>
+      <span>↑↓ Navegar · Tab Completar · Enter Ejecutar</span>
+    </div>`;
+
+    slashFiltered.forEach((item, idx) => {
+      const selClass = idx === slashSelectedIndex ? 'selected' : '';
+      html += `
+        <div class="slash-item ${selClass}" data-idx="${idx}">
+          <div class="slash-item-left">
+            <span class="slash-cmd-name">${item.cmd}</span>
+            ${item.arg ? `<span class="slash-cmd-arg">${item.arg}</span>` : ''}
+          </div>
+          <div class="slash-cmd-desc">${item.desc}</div>
+          <span class="slash-cmd-cat">${item.cat}</span>
+        </div>
+      `;
+    });
+
+    menu.innerHTML = html;
+
+    menu.querySelectorAll('.slash-item').forEach(el => {
+      el.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        const idx = parseInt(el.getAttribute('data-idx'), 10);
+        selectSlashItem(idx, true);
+      });
+    });
+
+    const activeEl = menu.querySelector('.slash-item.selected');
+    if (activeEl) {
+      activeEl.scrollIntoView({ block: 'nearest' });
+    }
+  }
+
+  function closeSlashMenu() {
+    slashMenuOpen = false;
+    const menu = slashMenuEl();
+    if (menu) menu.classList.remove('open');
+  }
+
+  function selectSlashItem(idx, executeIfNoArg = false) {
+    const item = slashFiltered[idx];
+    const inp = inputEl();
+    if (!item || !inp) return;
+
+    closeSlashMenu();
+    if (item.arg) {
+      inp.value = `${item.cmd} `;
+      inp.focus();
+    } else {
+      inp.value = item.cmd;
+      if (executeIfNoArg) {
+        executeAgentPrompt();
+      } else {
+        inp.focus();
+      }
+    }
+  }
+
+  window.agRunSlash = function (cmdText) {
+    const inp = inputEl();
+    if (!inp) return;
+    inp.value = cmdText;
+    closeSlashMenu();
+    executeAgentPrompt();
+  };
 
   function setTarget(target) {
     activeTarget = target;
@@ -56,7 +293,7 @@
     });
 
     const labelMap = {
-      supervisor: 'Supervisor-PC (Windows LAN · M:\\comp01)',
+      supervisor: 'Supervisor-PC (Windows LAN · M:\\comp01 · Invisible)',
       vps: 'VPS Soberano (Ubuntu 24.04 · 166.0.112.247)',
       all: 'Ambos Entornos (Distribuido simultáneo)'
     };
@@ -72,10 +309,10 @@
     });
 
     const placeholders = {
-      ai: 'Escribe una instrucción en lenguaje natural (ej. "Revisa si hay bloqueos en DBF", "Prueba la conexión a Postgres")...',
-      cmd: activeTarget === 'vps' ? 'Escribe un comando Bash (ej. ls -la, git status, ps aux)...' : 'Escribe un comando PowerShell (ej. Get-Process, git status, dir M:\\comp01)...',
-      python: 'Escribe código Python para ejecutar en el entorno agéntico (ej. import os; print(os.listdir(".")))...',
-      node: 'Escribe código Node.js para ejecutar (ej. const os = require("os"); console.log(os.cpus());)...'
+      ai: 'Escribe "/" para ver comandos y skills, o pide cualquier cambio de código/datos en MixNet y JJ Paper...',
+      cmd: activeTarget === 'vps' ? 'Escribe un comando Bash (ej. ls -la, git status, pm2 list)...' : 'Escribe un comando PowerShell (ej. Get-Process, git status, dir M:\\comp01)...',
+      python: 'Escribe código Python para ejecutar en el entorno agéntico...',
+      node: 'Escribe código Node.js para ejecutar...'
     };
     const inp = inputEl();
     if (inp) inp.placeholder = placeholders[mode] || 'Escribe tu comando...';
@@ -83,7 +320,7 @@
   window.agSetMode = setMode;
 
   async function enqueueTask(action, payload = {}) {
-    payload.target = activeTarget;
+    payload.target = payload.target || activeTarget;
     payload.timestamp = new Date().toISOString();
     payload.triggered_by = 'agent_console';
 
@@ -97,12 +334,122 @@
     return data.id;
   }
 
+  function renderTaskOutput(res) {
+    if (res.stdout) appendTerminal(res.stdout, 'out');
+    if (res.output) appendTerminal(res.output, 'out');
+    if (res.content) appendTerminal(res.content, 'out');
+    if (res.diff) appendDiffBlock(res.diff);
+    if (res.stderr) appendTerminal(res.stderr, 'err');
+
+    // 1. Usuarios de MixNet
+    if (res.users && Array.isArray(res.users)) {
+      appendTerminal(`📋 Nómina y Seguridad MixNet (${res.users.length} usuarios encontrados):`, 'ok');
+      appendTerminal(' CÓDIGO │ NOMBRE DEL USUARIO          │ ROL / CARGO', 'out');
+      appendTerminal('────────┼─────────────────────────────┼─────────────────────────', 'out');
+      for (const u of res.users) {
+        const code = String(u.code || '').padEnd(6, ' ');
+        const name = String(u.name || '').slice(0, 27).padEnd(27, ' ');
+        const role = String(u.role || u.seller_type || '').slice(0, 25);
+        appendTerminal(` ${code} │ ${name} │ ${role}`, 'out');
+      }
+    }
+
+    // 2. Salud y Correlativos
+    if (res.correlatives) {
+      appendTerminal(`📊 Estado en Vivo de MixNet ERP:`, 'ok');
+      appendTerminal(`  Cotizaciones: #${res.correlatives.cot} (Registros en MXENCCOT: ${res.tables?.quotes_records || '—'})`, 'out');
+      appendTerminal(`  Pedidos:      #${res.correlatives.ped} (Registros en MXENCPED: ${res.tables?.orders_records || '—'})`, 'out');
+      appendTerminal(`  Inventario:   ${res.tables?.catalog_records || '—'} artículos activos en MXCTAINV`, 'out');
+    }
+
+    // 3. Reporte de Ventas del Día (/ventas-hoy)
+    if (res.salesReport) {
+      const sr = res.salesReport;
+      appendTerminal(`📈 Resumen Operativo de Tienda (Fecha: ${sr.date}):`, 'ok');
+      appendTerminal(`  • Pedidos Emitidos:      ${sr.ordersCount} pedidos  ➔ Total: $${sr.ordersTotalUsd.toFixed(2)} USD`, 'out');
+      appendTerminal(`  • Cotizaciones Emitidas: ${sr.quotesCount} cotiz.   ➔ Total: $${sr.quotesTotalUsd.toFixed(2)} USD`, 'out');
+      const sellers = Object.entries(sr.bySeller || {});
+      if (sellers.length > 0) {
+        appendTerminal('  ─── Desglose por Vendedor (CODVEN) ───', 'info');
+        for (const [sName, st] of sellers) {
+          appendTerminal(`  👤 ${sName.padEnd(26, ' ')} │ Pedidos: ${String(st.ordersCount).padStart(2)} ($${st.ordersUsd.toFixed(2)}) │ Cotiz: ${String(st.quotesCount).padStart(2)} ($${st.quotesUsd.toFixed(2)})`, 'out');
+        }
+      }
+      if (Array.isArray(sr.recentOrders) && sr.recentOrders.length > 0) {
+        appendTerminal('  ─── Últimos Pedidos en MixNet ───', 'info');
+        for (const o of sr.recentOrders.slice(0, 6)) {
+          appendTerminal(`  #${o.num} │ ${String(o.client).slice(0, 28).padEnd(28, ' ')} │ $${o.total_usd.toFixed(2).padStart(8, ' ')} │ ${o.seller}`, 'out');
+        }
+      }
+    }
+
+    // 4. Lista de Tablas DBF (/inspeccionar-dbf LIST)
+    if (res.dbfList && Array.isArray(res.dbfList)) {
+      appendTerminal(`🗄️ Tablas DBF en comp01 (${res.dbfList.length} archivos):`, 'ok');
+      appendTerminal(' ARCHIVO DBF      │ REGISTROS  │ COLUMNAS │ BYTES/REG', 'out');
+      appendTerminal('──────────────────┼────────────┼──────────┼──────────', 'out');
+      for (const t of res.dbfList) {
+        appendTerminal(` ${String(t.table).padEnd(16, ' ')} │ ${String(t.records).padStart(10, ' ')} │ ${String(t.fieldsCount).padStart(8, ' ')} │ ${String(t.recordBytes).padStart(9, ' ')}`, 'out');
+      }
+    }
+
+    // 5. Radiografía de una Tabla DBF (/inspeccionar-dbf TABLA)
+    if (res.dbfInspect) {
+      const info = res.dbfInspect;
+      appendTerminal(`🔬 Radiografía de ${info.table} (${info.numRecords} registros, ${info.recordLen} bytes/reg):`, 'ok');
+      appendTerminal(' CAMPO        │ TIPO │ LONG │ DEC │ OFFSET', 'out');
+      appendTerminal('──────────────┼──────┼──────┼─────┼───────', 'out');
+      for (const f of info.fields) {
+        appendTerminal(` ${f.name.toUpperCase().padEnd(12, ' ')} │  ${f.type}   │ ${String(f.len).padStart(4, ' ')} │ ${String(f.dec).padStart(3, ' ')} │ +${f.pos}`, 'out');
+      }
+      if (Array.isArray(info.sampleRows) && info.sampleRows.length > 0) {
+        appendTerminal(` ─── Últimos ${info.sampleRows.length} registros en ${info.table} ───`, 'info');
+        for (const r of info.sampleRows) {
+          appendTerminal('  ' + JSON.stringify(r), 'out');
+        }
+      }
+    }
+
+    // 6. Coincidencias de Código (/explorar-mixnet)
+    if (res.codeMatches && Array.isArray(res.codeMatches)) {
+      appendTerminal(`🔍 Explorador de Código ("${res.query}") — ${res.matchesCount} hallazgos:`, 'ok');
+      for (const m of res.codeMatches) {
+        appendTerminal(` 📄 ${m.file}${m.line ? ':' + m.line : ''} ➔ ${m.preview}`, 'out');
+      }
+    }
+
+    // 7. Puente de Compatibilidad de Esquemas (/compatibilizar)
+    if (res.schemaBridge) {
+      const sbData = res.schemaBridge;
+      appendTerminal(`🌉 Puente de Esquemas: MixNet [${sbData.dbfTable}] ⇄ Web PostgreSQL [${sbData.pgTable}]`, 'ok');
+      appendTerminal(`  • Columnas MixNet (${sbData.dbfRecords} regs): ${sbData.dbfFields.join(', ')}`, 'out');
+      appendTerminal(`  • Columnas JJ Paper Web: ${sbData.pgColumns.join(', ')}`, 'out');
+    }
+
+    // 8. Snapshots (.BAK)
+    if (res.snapshots && Array.isArray(res.snapshots)) {
+      appendTerminal(`💾 Respaldos (.BAK) en comp01/backups/ (${res.snapshots.length}):`, 'ok');
+      for (const s of res.snapshots.slice(-15)) {
+        appendTerminal(`  • ${s.file} (${(s.sizeBytes / 1024).toFixed(1)} KB) — ${s.modifiedAt}`, 'out');
+      }
+    }
+
+    // 9. Resultado de Cirugía DBF
+    if (res.updatedRecords !== undefined && res.table) {
+      appendTerminal(`🛠️ Cirugía en ${res.table}: ${res.updatedRecords} registro(s) modificados (Respaldo previo: ${res.backupSnapshot}).`, 'ok');
+    }
+
+    if (res.details) {
+      appendTerminal(JSON.stringify(res.details, null, 2), 'out');
+    }
+  }
+
   async function pollTaskResult(taskId, maxSeconds = 45) {
-    appendTerminal(`Tarea #${taskId} encolada. Esperando respuesta de ${activeTarget.toUpperCase()}...`, 'info');
+    appendTerminal(`Tarea #${taskId} enviada a ${(activeTarget || 'supervisor').toUpperCase()}. Ejecutando...`, 'info');
 
     const startTime = Date.now();
     while (Date.now() - startTime < maxSeconds * 1000) {
-      await new Promise(r => setTimeout(r, 1200));
+      await new Promise(r => setTimeout(r, 1100));
 
       const { data: tRow, error } = await sb
         .from('jjp_mixnet_tasks')
@@ -112,48 +459,24 @@
 
       if (error) continue;
 
-      if (tRow.status === 'running') {
-        // En progreso
-      } else if (tRow.status === 'completed') {
+      if (tRow.status === 'completed') {
         const res = tRow.result || {};
-        if (res.stdout) appendTerminal(res.stdout, 'out');
-        if (res.output) appendTerminal(res.output, 'out');
-        if (res.content) appendTerminal(res.content, 'out');
-        if (res.stderr) appendTerminal(res.stderr, 'err');
-        
-        if (res.users && Array.isArray(res.users)) {
-          appendTerminal(`📋 Nómina y Seguridad MixNet (${res.users.length} usuarios encontrados):`, 'ok');
-          appendTerminal(' CÓDIGO │ NOMBRE DEL USUARIO          │ ROL / CARGO', 'out');
-          appendTerminal('────────┼─────────────────────────────┼─────────────────────────', 'out');
-          for (const u of res.users) {
-            const code = String(u.code || '').padEnd(6, ' ');
-            const name = String(u.name || '').slice(0, 27).padEnd(27, ' ');
-            const role = String(u.role || u.seller_type || '').slice(0, 25);
-            appendTerminal(` ${code} │ ${name} │ ${role}`, 'out');
-          }
-        } else if (res.correlatives) {
-          appendTerminal(`📊 Correlativos MixNet ERP:`, 'ok');
-          appendTerminal(`  Cotizaciones: #${res.correlatives.cot} (Registros: ${res.tables?.quotes_records || '—'})`, 'out');
-          appendTerminal(`  Pedidos:      #${res.correlatives.ped} (Registros: ${res.tables?.orders_records || '—'})`, 'out');
-          appendTerminal(`  Inventario:   ${res.tables?.catalog_records || '—'} artículos en catálogo`, 'out');
-        } else if (res.details) {
-          appendTerminal(JSON.stringify(res.details, null, 2), 'out');
-        }
+        renderTaskOutput(res);
 
         if (res.ok === false || (res.exitCode !== undefined && res.exitCode !== 0)) {
           appendTerminal(`Ejecución con error en ${res.target || activeTarget} (Código ${res.exitCode || 1}).`, 'err');
         } else {
-          appendTerminal(`Ejecución finalizada con éxito en ${res.target || activeTarget} (${res.exitCode !== undefined ? 'Código ' + res.exitCode : 'OK'}).`, 'ok');
+          appendTerminal(`Ejecución completada en ${res.target || activeTarget}.`, 'ok');
         }
         return res;
       } else if (tRow.status === 'failed') {
-        const err = tRow.error || tRow.result?.error || 'Fallo desconocido en la ejecución';
+        const err = tRow.error || tRow.result?.error || 'Fallo en la ejecución';
         appendTerminal(`Error en tarea #${taskId}: ${err}`, 'err');
         return { ok: false, error: err };
       }
     }
 
-    appendTerminal(`Tiempo de espera agotado (${maxSeconds}s) esperando a la máquina. La tarea sigue en cola.`, 'err');
+    appendTerminal(`Tiempo de espera agotado (${maxSeconds}s). La tarea continúa procesándose.`, 'err');
     return { ok: false, timeout: true };
   }
 
@@ -197,6 +520,7 @@
     const text = inp.value.trim();
     if (!text || isExecuting) return;
 
+    closeSlashMenu();
     isExecuting = true;
     if (execBtnEl()) execBtnEl().disabled = true;
 
@@ -207,117 +531,186 @@
     inp.value = '';
 
     try {
-      // 0. Slash Commands directos (sin gastar tokens ni depender de IA)
-      const normCmd = text.toLowerCase().trim();
-      if (normCmd === '/users' || normCmd === '/usuarios') {
-        appendTerminal('Consultando usuarios y nómina de MixNet en Supervisor-PC...', 'info');
+      const parts = text.trim().split(/\s+/);
+      const cmdHead = parts[0].toLowerCase();
+      const cmdArgs = parts.slice(1).join(' ').trim();
+
+      // ================================================================
+      // 1. Ejecución Instantánea de Comandos Slash y Skills Diarios
+      // ================================================================
+      if (cmdHead === '/ventas-hoy') {
+        const taskId = await enqueueTask('sales_today', { target: 'supervisor', date: cmdArgs || undefined });
+        await pollTaskResult(taskId);
+        return;
+      }
+      if (cmdHead === '/users' || cmdHead === '/usuarios') {
         const taskId = await enqueueTask('list_users', { target: 'supervisor' });
         await pollTaskResult(taskId);
         return;
       }
-      if (normCmd === '/status' || normCmd === '/estado' || normCmd === '/health') {
-        appendTerminal('Consultando salud del ERP y correlativos en Supervisor-PC...', 'info');
+      if (cmdHead === '/status' || cmdHead === '/estado' || cmdHead === '/health') {
         const taskId = await enqueueTask('audit_health', { target: 'supervisor' });
         await pollTaskResult(taskId);
         return;
       }
-      if (normCmd === '/sync' || normCmd === '/sincronizar' || normCmd === '/sync-now') {
-        appendTerminal('Encolando sincronización forzada de documentos y catálogo...', 'info');
+      if (cmdHead === '/sync' || cmdHead === '/sincronizar' || cmdHead === '/sync-now') {
         const taskId = await enqueueTask('sync_all', { target: 'supervisor', force: true });
         await pollTaskResult(taskId);
         return;
       }
-      if (normCmd === '/reindex' || normCmd === '/reindexar') {
-        appendTerminal('Solicitando reindexación de los 10 archivos NTX en Supervisor-PC...', 'info');
+      if (cmdHead === '/auditar-clientes') {
+        const taskId = await enqueueTask('clients_discrepancies', { target: 'supervisor' });
+        await pollTaskResult(taskId);
+        return;
+      }
+      if (cmdHead === '/conciliar-clientes') {
+        const taskId = await enqueueTask('reconcile_clients', { target: 'supervisor' });
+        await pollTaskResult(taskId);
+        return;
+      }
+      if (cmdHead === '/inspeccionar-dbf') {
+        const taskId = await enqueueTask('inspect_dbf', { target: 'supervisor', table: cmdArgs || 'LIST' });
+        await pollTaskResult(taskId);
+        return;
+      }
+      if (cmdHead === '/explorar-mixnet') {
+        const taskId = await enqueueTask('explore_mixnet', { target: 'supervisor', query: cmdArgs });
+        await pollTaskResult(taskId);
+        return;
+      }
+      if (cmdHead === '/compatibilizar') {
+        const [dbf, pgTable] = cmdArgs.split(/\s+/);
+        const taskId = await enqueueTask('schema_bridge', {
+          target: 'supervisor',
+          dbf: dbf || 'MXCTACLI',
+          pgTable: pgTable || 'jjp_customers'
+        });
+        await pollTaskResult(taskId);
+        return;
+      }
+      if (cmdHead === '/leer-archivo') {
+        if (!cmdArgs) {
+          appendTerminal('Uso: /leer-archivo [ruta] (ej. /leer-archivo jj-mixnet-agent/sync-documents.js)', 'err');
+          return;
+        }
+        const taskId = await enqueueTask('read_file', { target: activeTarget, path: cmdArgs });
+        await pollTaskResult(taskId);
+        return;
+      }
+      if (cmdHead === '/reindex' || cmdHead === '/reindexar') {
         const taskId = await enqueueTask('reindex_all', { target: 'supervisor' });
         await pollTaskResult(taskId);
         return;
       }
-      if (normCmd === '/backup') {
-        appendTerminal('Creando snapshot de respaldo en comp01/backups/...', 'info');
-        const taskId = await enqueueTask('create_backup', { target: 'supervisor', label: 'consola_manual' });
+      if (cmdHead === '/backup') {
+        const taskId = await enqueueTask('create_backup', { target: 'supervisor', label: cmdArgs || 'consola_manual' });
         await pollTaskResult(taskId);
         return;
       }
-      if (normCmd === '/clear') {
+      if (cmdHead === '/snapshots') {
+        const taskId = await enqueueTask('list_snapshots', { target: 'supervisor' });
+        await pollTaskResult(taskId);
+        return;
+      }
+      if (cmdHead === '/rollback') {
+        if (!cmdArgs) {
+          appendTerminal('Especifica el nombre del snapshot o usa /snapshots primero para ver la lista.', 'err');
+          return;
+        }
+        const taskId = await enqueueTask('rollback', { target: 'supervisor', snapshot: cmdArgs });
+        await pollTaskResult(taskId);
+        return;
+      }
+      if (cmdHead === '/logs') {
+        const taskId = await enqueueTask('read_logs', { target: 'supervisor', lines: 60 });
+        await pollTaskResult(taskId);
+        return;
+      }
+      if (cmdHead === '/update-agent') {
+        const taskId = await enqueueTask('git_pull', { target: 'supervisor', restart: true });
+        await pollTaskResult(taskId);
+        return;
+      }
+      if (cmdHead === '/clear') {
         clearTerminal();
         return;
       }
-      if (normCmd === '/help' || normCmd === '/ayuda' || normCmd === 'help') {
-        appendTerminal('Comandos directos disponibles en la consola OpenCode:', 'ok');
-        appendTerminal('  /users    - Lista todos los vendedores y usuarios de caja de MixNet', 'out');
-        appendTerminal('  /status   - Estado en vivo, correlativos actuales (Cotizaciones/Pedidos) y salud', 'out');
-        appendTerminal('  /sync     - Fuerza sincronización inmediata de ventas y catálogo', 'out');
-        appendTerminal('  /reindex  - Reconstruye los 10 índices .NTX de Clipper sin bloquear caja', 'out');
-        appendTerminal('  /backup   - Crea un respaldo de seguridad sellado en comp01/backups/', 'out');
-        appendTerminal('  /clear    - Limpia la pantalla de la terminal', 'out');
-        appendTerminal('O escribe cualquier consulta en lenguaje natural (ej. "¿Cuáles fueron los últimos 3 pedidos?").', 'info');
+      if (cmdHead === '/help' || cmdHead === '/ayuda') {
+        appendTerminal('Comandos y Skills disponibles (también puedes pulsar "/" para abrir el menú interactivo):', 'ok');
+        for (const c of SLASH_COMMANDS) {
+          appendTerminal(`  ${(c.cmd + ' ' + c.arg).padEnd(28, ' ')} — ${c.desc}`, 'out');
+        }
         return;
       }
 
+      // Si usó /editar-datos [instrucción], pasamos la instrucción al Agente de Código con permiso explícito de mutación
+      const effectivePrompt = cmdHead === '/editar-datos'
+        ? `[ORDEN AUTORIZADA DE CIRUGÍA DE DATOS EN MIXNET]: ${cmdArgs}`
+        : text;
+
       if (activeMode === 'cmd') {
-        const taskId = await enqueueTask('exec_cmd', { command: text });
+        const taskId = await enqueueTask('exec_cmd', { command: effectivePrompt });
         await pollTaskResult(taskId);
       } else if (activeMode === 'python') {
-        const taskId = await enqueueTask('exec_python', { code: text });
+        const taskId = await enqueueTask('exec_python', { code: effectivePrompt });
         await pollTaskResult(taskId);
       } else if (activeMode === 'node') {
-        const taskId = await enqueueTask('exec_node', { code: text });
+        const taskId = await enqueueTask('exec_node', { code: effectivePrompt });
         await pollTaskResult(taskId);
       } else {
-        // MODO ASISTENTE IA: Analiza con Gemini y despacha la acción autónoma
-        appendTerminal('🧠 Analizando requerimiento con el Cerebro IA...', 'info');
-        
-        const agentSystemPrompt = `Eres OpenCode, el Agente de Inteligencia e Ingeniería Soberana de JJ Paper (Distribuidora Mayorista de Papelería en Venezuela).
+        // ================================================================
+        // 2. MODO AGENTE DE INGENIERÍA DE CÓDIGO (Claude Code / Hermes)
+        // ================================================================
+        appendTerminal('🧠 Analizando código y estructura con el Agente de Ingeniería...', 'info');
 
-ESTRUCTURA DE INFRAESTRUCTURA:
-1. Supervisor-PC (Windows 11, LAN Tienda 192.168.0.185):
-   - Conectado a MixNet ERP en 'M:\\comp01' o '\\\\servidor\\MIX11\\comp01'.
-   - Archivos Clipper DBF:
-     * MXENCPED.DBF (pedidos encabezados): NUMPED char(8), EMISION char(8) YYYYMMDD, CLIENTE char(8) ej '008-817', CODVEN char(3), TOTNETO num, ESTADO char(2) 'OK'/'PE'.
-     * MXRENPED.DBF (líneas de pedido): NUMPED char(8), ITEM char(20), DESCRI char(40), CANTIDAD num, PRECIO num, TOTAL num.
-     * MXENCCOT.DBF & MXRENCOT.DBF (cotizaciones).
-     * MXCTACLI.DBF (clientes): CODIGO char(8), NOMBRE char(40), RIF char(15), CODVEN char(3), TELEFONO char(20), DIREC1 char(50).
-     * MXCTAINV.DBF (inventario +2400 productos): ITEM char(20), DESCRI char(40), PRECIO num, EXISTE num.
-     * MXNUMPED.DBF / MXNUMCOT.DBF (correlativos).
-   - Python 3 disponible en PATH. Con 'struct' se lee la cabecera (num_records, header_len, record_len = struct.unpack('<IHH', header[4:12])) y se extraen los registros directamente con f.seek(header_len + idx * record_len).
-2. VPS Soberano (Ubuntu 24.04 LTS, 166.0.112.247):
-   - PostgreSQL 16 ('jjpaper_db'), PostgREST, GoTrue, wa-server.
-   - Tablas: jjp_orders, jjp_quotes, jjp_products, jjp_customers, jjp_settings, etc.
+        const agentSystemPrompt = `Eres OpenCode (estilo Claude Code / Hermes), el Agente de Ingeniería de Código y Datos Soberano de JJ Paper.
+Tu misión es doble:
+1. Entender tanto el código de MixNet ERP (Clipper/Harbour .PRG, tablas .DBF, índices .NTX en '\\\\servidor\\MIX11\\comp01' o 'M:\\MIX11\\comp01') como el código de JJ Paper Web (JS, HTML, Node.js y PostgreSQL 16 en el VPS) y hacerlos compatibles.
+2. Mientras el demonio de sincronización automática cuida que las cotizaciones y pedidos fluyan sin corromper nada, TÚ eres el Agente de Ingeniería: si el usuario te pide expresamente inspeccionar, modificar código fuente, parchar funciones o alterar/limpiar registros en las bases .DBF de MixNet, TIENES AUTORIZACIÓN TOTAL para hacerlo usando tus herramientas.
 
-VENDEDORES SAGRADOS:
-- 002: Luis Alarcón | 004 / 006: Yovanni Araujo | 008: Marianela | 014: Andreina | 005: Keyder Salazar (Admin / Mostrador; Cartera 020 es artificial; Cartera 010 es histórica; ventas solo son de Keyder si CODVEN = '005').
+HERRAMIENTAS Y ACCIONES NATIVAS ("action"):
+- "sales_today": Resumen de ventas (pedidos y cotizaciones) de hoy en MixNet desglosado por vendedor.
+- "list_users": Consultar usuarios, vendedores y permisos de MixNet.
+- "audit_health": Correlativos actuales (MXNUMCOT, MXNUMPED) y conteo de registros.
+- "inspect_dbf": Inspeccionar estructura binaria, columnas y registros de una tabla DBF. Usa "table": "MXCTAINV" (o "LIST" para listar todas).
+- "explore_mixnet": Buscar código fuente (.PRG, .CH, .JS) o columnas DBF. Usa "query": "término".
+- "schema_bridge": Comparar tabla DBF de MixNet con tabla PostgreSQL de JJ Paper. Usa "dbf": "MXCTACLI", "pgTable": "jjp_customers".
+- "read_file": Leer un archivo del proyecto o de MixNet. Usa "path": "ruta/al/archivo".
+- "patch_file": Modificar código fuente con respaldo .bak y verificación de sintaxis automática. Usa "path": "...", "target": "bloque exacto actual", "replacement": "bloque nuevo".
+- "mutate_dbf": Cirugía autorizada sobre registros de un archivo .DBF en MixNet (crea snapshot .BAK automático y reindexa .NTX). Usa "table": "MXENCCOT", "whereField": "numcot", "whereValue": "00053628", "updates": {"nomcli": "NUEVO NOMBRE"}, o "deleteRecord": true / "undeleteRecord": true.
+- "exec_python": Script Python autónomo para consultas avanzadas o cruces de datos sobre los DBF en '\\\\servidor\\MIX11\\comp01' o 'M:\\MIX11\\comp01'.
+- "exec_node": Script Node.js para consultar/modificar PostgreSQL o el puente.
+- "exec_cmd": Comando PowerShell o Bash.
+- "sync_all", "reindex_all", "create_backup", "read_logs", "direct_answer".
 
-ACCIONES DISPONIBLES:
-- "list_users": Para consultar usuarios de caja, vendedores, nómina o permisos de MixNet.
-- "audit_health": Para consultar correlativos actuales, tablas y salud general del ERP.
-- "sync_all": Para sincronizar documentos y catálogo.
-- "direct_answer": Para preguntas conceptuales, explicaciones o saludos que no requieran consultar la máquina.
-- "exec_python": Script Python autónomo para consultar DBF en supervisor o procesar datos. Debe probar rutas [r'M:\\comp01\\' + archivo, r'\\\\servidor\\MIX11\\comp01\\' + archivo, r'M:\\MIX11\\comp01\\' + archivo].
-- "exec_cmd": Comandos terminal válidos (ej. git status, dir, ls, pm2 list).
-- "exec_node": Scripts Node.js para APIs o PostgreSQL.
-- "git_pull", "reindex_all", "create_backup".
+VENDEDORES OFICIALES (CODVEN):
+002: Luis Alarcón | 004/006: Yovanni Araujo | 008: Marianela | 014: Andreina | 005: Keyder Salazar.
 
-REGLAS CRÍTICAS:
-- NUNCA inventes comandos de shell ficticios ni envíes preguntas en lenguaje natural a la consola del sistema operativo.
-- Si el usuario pregunta por un pedido, cliente o producto de MixNet, genera SIEMPRE un script "exec_python" con target "supervisor" para consultar el archivo DBF correspondiente y mostrar la respuesta formateada con print().
-- Si el usuario pregunta por usuarios, vendedores o permisos de caja, usa la acción "list_users" con target "supervisor".
-- Responde estrictamente un JSON válido.
-
-FORMATO JSON REQUERIDO:
+Responde ESTRICTAMENTE un objeto JSON válido:
 {
-  "action": "list_users" | "audit_health" | "sync_all" | "direct_answer" | "exec_python" | "exec_cmd" | "exec_node" | "git_pull" | "reindex_all" | "create_backup",
+  "action": "sales_today" | "list_users" | "audit_health" | "inspect_dbf" | "explore_mixnet" | "schema_bridge" | "read_file" | "patch_file" | "mutate_dbf" | "exec_python" | "exec_node" | "exec_cmd" | "sync_all" | "reindex_all" | "create_backup" | "read_logs" | "direct_answer",
   "target": "supervisor" | "vps",
+  "table": "nombre tabla DBF si aplica",
+  "query": "término de búsqueda si aplica",
+  "dbf": "tabla DBF si aplica en schema_bridge",
+  "pgTable": "tabla postgres si aplica en schema_bridge",
+  "path": "ruta archivo si aplica en read_file o patch_file",
+  "patchTarget": "texto original si aplica en patch_file",
+  "patchReplacement": "texto nuevo si aplica en patch_file",
+  "whereField": "campo filtro si aplica en mutate_dbf",
+  "whereValue": "valor filtro si aplica en mutate_dbf",
+  "updates": {},
+  "deleteRecord": false,
   "code": "código python o node si aplica",
-  "command": "comando de shell si aplica",
-  "answer": "texto de respuesta si action es direct_answer",
-  "explanation": "resumen en 1 línea de lo que hará"
+  "command": "comando shell si aplica",
+  "answer": "respuesta detallada si action es direct_answer",
+  "explanation": "resumen claro en 1 línea del paso técnico a ejecutar"
 }`;
 
         let aiPlan = null;
         if (typeof GeminiClient !== 'undefined' && GeminiClient.callGemini) {
           try {
-            const rawJson = await GeminiClient.callGemini(text, {
+            const rawJson = await GeminiClient.callGemini(effectivePrompt, {
               systemInstruction: agentSystemPrompt,
               temperature: 0.1,
               timeoutMs: 18000
@@ -329,40 +722,47 @@ FORMATO JSON REQUERIDO:
         }
 
         if (aiPlan && aiPlan.action) {
-          appendTerminal(`🤖 Plan IA: ${aiPlan.explanation || aiPlan.action}`, 'info');
+          appendTerminal(`🤖 Plan de Ingeniería: ${aiPlan.explanation || aiPlan.action}`, 'info');
 
           if (aiPlan.action === 'direct_answer') {
             appendTerminal(aiPlan.answer || aiPlan.explanation || 'Consulta procesada.', 'ok');
             return;
           }
 
-          let payload = {
+          const payload = {
             target: aiPlan.target || activeTarget,
-            explanation: aiPlan.explanation
+            explanation: aiPlan.explanation,
+            table: aiPlan.table,
+            query: aiPlan.query,
+            dbf: aiPlan.dbf,
+            pgTable: aiPlan.pgTable,
+            path: aiPlan.path,
+            target: aiPlan.patchTarget || aiPlan.target || activeTarget,
+            replacement: aiPlan.patchReplacement,
+            whereField: aiPlan.whereField,
+            whereValue: aiPlan.whereValue,
+            updates: aiPlan.updates,
+            deleteRecord: aiPlan.deleteRecord,
+            code: aiPlan.code,
+            command: aiPlan.command,
+            label: aiPlan.label || 'ai_console'
           };
 
-          if (aiPlan.action === 'exec_python') {
-            payload.code = aiPlan.code;
-          } else if (aiPlan.action === 'exec_node') {
-            payload.code = aiPlan.code;
-          } else if (aiPlan.action === 'exec_cmd') {
-            payload.command = aiPlan.command;
-          } else if (aiPlan.action === 'create_backup') {
-            payload.label = aiPlan.label || 'ai_console';
+          if (aiPlan.action === 'patch_file') {
+            payload.target = aiPlan.patchTarget;
           }
 
           const taskId = await enqueueTask(aiPlan.action, payload);
           await pollTaskResult(taskId);
         } else {
-          // Si falló la IA y NO es un comando de terminal reconocible, NO enviarlo a la shell
-          const looksLikeShellCmd = /^(git\b|dir\b|ls\b|cd\b|python\b|node\b|pm2\b|npm\b|Get-|curl\b|cat\b|echo\b)/i.test(text);
+          const looksLikeShellCmd = /^(git\b|dir\b|ls\b|cd\b|python\b|node\b|pm2\b|npm\b|Get-|curl\b|cat\b|echo\b)/i.test(effectivePrompt);
           if (looksLikeShellCmd) {
             appendTerminal(`Ejecutando comando directo en terminal...`, 'info');
-            const taskId = await enqueueTask('exec_cmd', { command: text });
+            const taskId = await enqueueTask('exec_cmd', { command: effectivePrompt });
             await pollTaskResult(taskId);
           } else {
-            appendTerminal(`⚠️ No se pudo procesar la pregunta con la IA y no es un comando de sistema válido.`, 'err');
-            appendTerminal(`Tip: Reformule su pregunta (ej. "¿Cuál es el último pedido en MixNet?") o cambie de modo a 'Terminal Directo' para ejecutar comandos de PowerShell/Bash.`, 'info');
+            appendTerminal(`⚠️ No se pudo procesar la instrucción con la IA en este intento.`, 'err');
+            appendTerminal(`Tip: Escribe "/" para elegir un comando directo de la lista desplegable o intenta nuevamente.`, 'info');
           }
         }
       }
@@ -375,7 +775,6 @@ FORMATO JSON REQUERIDO:
   }
   window.agExecute = executeAgentPrompt;
 
-  // Acciones Rápidas
   window.agQuickAction = async function (action, payload = {}) {
     if (isExecuting) return;
     isExecuting = true;
@@ -393,7 +792,6 @@ FORMATO JSON REQUERIDO:
     }
   };
 
-  // Verificación de Salud de los Motores
   async function checkEnginesHealth() {
     try {
       const vpsDot = document.getElementById('agVpsStatusDot');
@@ -401,18 +799,16 @@ FORMATO JSON REQUERIDO:
       const lanDot = document.getElementById('agLanStatusDot');
       const lanTxt = document.getElementById('agLanStatusTxt');
 
-      // 1. VPS PostgreSQL & wa-server
       const { data: vpsControl } = await sb.from('jjp_server_control').select('*').eq('id', 1).maybeSingle();
-      
+
       let isVpsOnline = false;
       const lastHb = vpsControl?.heartbeat_at ? new Date(vpsControl.heartbeat_at).getTime() : 0;
-      const isHbFresh = lastHb > 0 && Math.abs(Date.now() - lastHb) < 300000; // 5 minutos
+      const isHbFresh = lastHb > 0 && Math.abs(Date.now() - lastHb) < 300000;
       const isStatusOnline = vpsControl?.modules?.status === 'online';
 
       if (isHbFresh || isStatusOnline) {
         isVpsOnline = true;
       } else {
-        // Fallback a telemetría nativa del VPS
         try {
           const tRes = await fetch('https://166-0-112-247.sslip.io/auth/v1/telemetry');
           if (tRes.ok) {
@@ -427,7 +823,6 @@ FORMATO JSON REQUERIDO:
         vpsTxt.textContent = isVpsOnline ? 'Online (VPS 24/7)' : 'En espera';
       }
 
-      // 2. Supervisor-PC (LAN)
       const mixnetAgent = vpsControl?.modules?.mixnet_agent;
       const lastAgentSync = mixnetAgent?.last_sync_at ? new Date(mixnetAgent.last_sync_at).getTime() : 0;
       let isLanActive = mixnetAgent?.online === true && (lastAgentSync > 0 && Math.abs(Date.now() - lastAgentSync) < 300000);
@@ -445,19 +840,58 @@ FORMATO JSON REQUERIDO:
 
       if (lanDot && lanTxt) {
         lanDot.className = `status-dot ${isLanActive ? 'online' : 'warn'}`;
-        lanTxt.textContent = isLanActive ? 'Conectado (Tienda)' : 'Listo';
+        lanTxt.textContent = isLanActive ? `Conectado (#${mixnetAgent?.current_ped_serial || 'Tienda'})` : 'Listo';
       }
     } catch (_) {}
   }
 
   document.addEventListener('DOMContentLoaded', () => {
-    appendTerminal('Inicializando entorno agéntico soberano JJ Paper (OpenCode)...', 'info');
-    appendTerminal('Conexión con PostgreSQL 16 y tabla jjp_mixnet_tasks establecida.', 'ok');
-    appendTerminal('Elige el destino y escribe un comando o instrucción.', 'info');
+    appendTerminal('Inicializando OpenCode v3 (Sincronizador 24/7 + Agente de Ingeniería MixNet ⇄ JJ Paper)...', 'info');
+    appendTerminal('Conexión establecida. Escribe "/" en la barra inferior para desplegar todos los comandos y skills.', 'ok');
 
     const inp = inputEl();
     if (inp) {
+      inp.addEventListener('input', () => {
+        updateSlashMenu();
+      });
+
       inp.addEventListener('keydown', (e) => {
+        if (slashMenuOpen && slashFiltered.length > 0) {
+          if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            slashSelectedIndex = (slashSelectedIndex + 1) % slashFiltered.length;
+            updateSlashMenu();
+            return;
+          }
+          if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            slashSelectedIndex = (slashSelectedIndex - 1 + slashFiltered.length) % slashFiltered.length;
+            updateSlashMenu();
+            return;
+          }
+          if (e.key === 'Tab') {
+            e.preventDefault();
+            selectSlashItem(slashSelectedIndex, false);
+            return;
+          }
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            const chosen = slashFiltered[slashSelectedIndex];
+            if (chosen && inp.value.trim() !== chosen.cmd && !inp.value.includes(' ')) {
+              selectSlashItem(slashSelectedIndex, !chosen.arg);
+            } else {
+              closeSlashMenu();
+              executeAgentPrompt();
+            }
+            return;
+          }
+          if (e.key === 'Escape') {
+            e.preventDefault();
+            closeSlashMenu();
+            return;
+          }
+        }
+
         if (e.key === 'Enter' && !e.shiftKey) {
           e.preventDefault();
           executeAgentPrompt();
@@ -474,6 +908,13 @@ FORMATO JSON REQUERIDO:
             historyCursor = commandHistory.length;
             inp.value = '';
           }
+        }
+      });
+
+      document.addEventListener('click', (e) => {
+        const menu = slashMenuEl();
+        if (slashMenuOpen && menu && !menu.contains(e.target) && e.target !== inp) {
+          closeSlashMenu();
         }
       });
     }

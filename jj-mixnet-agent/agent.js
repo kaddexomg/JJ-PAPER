@@ -259,9 +259,11 @@ function startMicroApi() {
       log('[API] Orden de actualización vía git pull recibida...');
       try {
         const repoRoot = path.resolve(__dirname, '..');
-        const out = execSync('git pull origin main', { cwd: repoRoot, encoding: 'utf8', timeout: 20000 });
+        const gitEnv = { ...process.env, GIT_TERMINAL_PROMPT: '0' };
+        execSync('git -c core.askPass= fetch origin main', { cwd: repoRoot, encoding: 'utf8', timeout: 20000, windowsHide: true, env: gitEnv });
+        const out = execSync('git -c core.askPass= reset --hard origin/main', { cwd: repoRoot, encoding: 'utf8', timeout: 20000, windowsHide: true, env: gitEnv });
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ ok: true, output: out }));
+        res.end(JSON.stringify({ ok: true, output: out.trim() }));
         setTimeout(() => process.exit(0), 1000);
       } catch (err) {
         res.writeHead(500, { 'Content-Type': 'application/json' });

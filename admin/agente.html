@@ -228,15 +228,99 @@
   .term-out { color: #e2e8f0; }
   .term-err { color: #f87171; font-weight: 600; }
   .term-ok  { color: #34d399; font-weight: 700; }
+  .term-diff-add { color: #4ade80; background: rgba(34, 197, 94, 0.12); padding: 1px 6px; border-left: 3px solid #22c55e; font-family: "Fira Code", Consolas, monospace; }
+  .term-diff-del { color: #f87171; background: rgba(239, 68, 68, 0.12); padding: 1px 6px; border-left: 3px solid #ef4444; font-family: "Fira Code", Consolas, monospace; }
 
   /* Input bar */
   .terminal-ft {
+    position: relative;
     background: #0b1523;
     border-top: 1px solid rgba(255,255,255,0.08);
     padding: 12px 16px;
     display: flex;
     flex-direction: column;
     gap: 8px;
+  }
+
+  /* Paleta Desplegable de Comandos Slash (Estilo Claude Code) */
+  .slash-palette {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 16px;
+    right: 16px;
+    max-height: 340px;
+    overflow-y: auto;
+    background: rgba(9, 16, 29, 0.97);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(16, 185, 129, 0.45);
+    border-radius: 14px;
+    box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.75), 0 0 24px rgba(16, 185, 129, 0.2);
+    z-index: 60;
+    display: none;
+    padding: 6px;
+  }
+  .slash-palette.open {
+    display: block;
+  }
+  .slash-palette-hd {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #94a3b8;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .slash-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 9px 12px;
+    border-radius: 9px;
+    cursor: pointer;
+    transition: all 0.12s ease;
+  }
+  .slash-item:hover,
+  .slash-item.selected {
+    background: rgba(16, 185, 129, 0.16);
+    border-left: 3px solid #10b981;
+  }
+  .slash-item-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 220px;
+  }
+  .slash-cmd-name {
+    font-family: "Fira Code", Consolas, monospace;
+    font-size: 13px;
+    font-weight: 700;
+    color: #34d399;
+  }
+  .slash-cmd-arg {
+    font-family: "Fira Code", Consolas, monospace;
+    font-size: 11.5px;
+    color: #38bdf8;
+    opacity: 0.85;
+  }
+  .slash-cmd-desc {
+    flex: 1;
+    font-size: 12.5px;
+    color: #cbd5e1;
+  }
+  .slash-cmd-cat {
+    font-size: 10.5px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: rgba(255,255,255,0.07);
+    color: #94a3b8;
+    white-space: nowrap;
   }
 
   .mode-row {
@@ -374,23 +458,29 @@
 
       <!-- Quick Actions Toolbar -->
       <div class="quick-toolbar">
-        <button type="button" class="btn-quick" onclick="agQuickAction('git_pull')">
-          ⚡ Git Pull & Auto-Restart
+        <button type="button" class="btn-quick" onclick="agRunSlash('/ventas-hoy')">
+          📊 Ventas Hoy
         </button>
-        <button type="button" class="btn-quick" onclick="agQuickAction('backup', { label: 'manual_console' })">
-          💾 Snapshot Preventivo (.BAK)
+        <button type="button" class="btn-quick" onclick="agRunSlash('/users')">
+          👥 Usuarios MixNet
+        </button>
+        <button type="button" class="btn-quick" onclick="agRunSlash('/inspeccionar-dbf LIST')">
+          🗄️ Radiografía DBFs
+        </button>
+        <button type="button" class="btn-quick" onclick="agRunSlash('/explorar-mixnet')">
+          🔍 Explorar Código MixNet
         </button>
         <button type="button" class="btn-quick" onclick="agQuickAction('reindex_all')">
-          🔄 Reindexar 10 Índices .NTX
+          🔄 Reindexar 10 .NTX
         </button>
-        <button type="button" class="btn-quick" onclick="agQuickAction('audit_health')">
-          🩺 Auditoría de Salud MixNet
+        <button type="button" class="btn-quick" onclick="agQuickAction('backup', { label: 'manual_console' })">
+          💾 Snapshot (.BAK)
         </button>
-        <button type="button" class="btn-quick" onclick="agQuickAction('exec_cmd', { command: 'dir M:\\MIX11\\comp01\\*.DBF', cwd: 'comp01' })">
-          📁 Listar Tablas DBF
+        <button type="button" class="btn-quick" onclick="agRunSlash('/logs')">
+          📜 Ver Logs Agente
         </button>
         <button type="button" class="btn-quick" style="margin-left:auto;color:#94a3b8" onclick="agClearTerminal()">
-          🧹 Limpiar Pantalla
+          🧹 Limpiar
         </button>
       </div>
 
@@ -402,21 +492,24 @@
             <span class="term-dot td-yel"></span>
             <span class="term-dot td-grn"></span>
           </div>
-          <div>jjpaper@terminal: ~ (bash / powershell / open-code)</div>
-          <div>UTF-8 · UTF-16LE · ANSI</div>
+          <div>jjpaper@opencode: ~ (Agente de Ingeniería de Código & Sincronizador 24/7)</div>
+          <div>Escribe <strong>/</strong> para abrir comandos y skills</div>
         </div>
         <div class="terminal-body" id="agTerminalOutput"></div>
         
         <div class="terminal-ft">
+          <!-- Menú Desplegable Interactivo de Comandos Slash -->
+          <div class="slash-palette" id="agSlashMenu" role="listbox" aria-label="Comandos y Skills disponibles"></div>
+
           <div class="mode-row">
             <span style="font-size:11px;color:#64748b;font-weight:600">MODO:</span>
-            <button type="button" class="mode-pill active" data-mode="ai" onclick="agSetMode('ai')">✨ Asistente IA (Razonamiento)</button>
+            <button type="button" class="mode-pill active" data-mode="ai" onclick="agSetMode('ai')">✨ Agente de Código & IA (Claude/Hermes Style)</button>
             <button type="button" class="mode-pill" data-mode="cmd" onclick="agSetMode('cmd')">⚡ Terminal Directo (PowerShell / Bash)</button>
             <button type="button" class="mode-pill" data-mode="python" onclick="agSetMode('python')">🐍 Python</button>
             <button type="button" class="mode-pill" data-mode="node" onclick="agSetMode('node')">🟢 Node.js</button>
           </div>
           <div class="input-row">
-            <input type="text" class="ag-input" id="agCommandInput" placeholder="Escribe una instrucción en lenguaje natural o comando de terminal directo..." autocomplete="off">
+            <input type="text" class="ag-input" id="agCommandInput" placeholder="Escribe '/' para ver todos los comandos y skills, o pide cualquier cambio de código/datos..." autocomplete="off">
             <button type="button" class="btn-exec" id="agExecBtn" onclick="agExecute()">
               <span>Ejecutar</span>
               <span>↵</span>
@@ -435,7 +528,7 @@
 <script src="../assets/js/admin/auth.js?v=20261023_nav_absolute"></script>
 <script src="../assets/js/admin/sidenav.js?v=20261103_keyboard_hub"></script>
 <script src="../assets/js/gemini-client.js?v=20261027_corp_email_v3"></script>
-<script src="../assets/js/admin/agent-console.js?v=20261106_slash_cmds_v2"></script>
+<script src="../assets/js/admin/agent-console.js?v=20261107_claude_palette_v3"></script>
 <script>
 document.addEventListener('DOMContentLoaded', async () => {
   const session = await requireAuth();

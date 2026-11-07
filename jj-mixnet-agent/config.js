@@ -14,7 +14,7 @@ export const SUPABASE_URL = (process.env.SUPABASE_URL_CORE || 'http://100.89.82.
 export const SERVICE_KEY  = (process.env.SERVICE_KEY_CORE  || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaXNzIjoic3VwYWJhc2UiLCJpYXQiOjE3Mjk1MDAwMDAsImV4cCI6MjA0NTAwMDAwMH0.Re_nlxR74OCn2LLRN78SKEHt8FxFYanYLsZr2Cvyf8s').trim();
 
 export const AGENT_PORT = parseInt(process.env.AGENT_PORT || '8790', 10);
-export const AGENT_VERSION = '3.1.0-PROD';
+export const AGENT_VERSION = '3.2.0-OPENCODE';
 
 // Mapeo Canónico de Vendedores (MixNet CODVEN <-> Supabase jjp_profiles)
 // NOTA SOLEMNE: En MixNet, Keyder Salazar es CODVEN '005'.
@@ -105,7 +105,22 @@ export function getMixnetDir() {
   return null;
 }
 
+const LOG_DIR = path.join(__dirname, 'logs');
+const LOG_FILE = path.join(LOG_DIR, 'agent.log');
+
 export function log(msg, level = 'INFO') {
   const ts = new Date().toISOString().replace('T', ' ').slice(0, 19);
-  console.log(`[${ts}] [${level}] ${msg}`);
+  const line = `[${ts}] [${level}] ${msg}`;
+  console.log(line);
+  try {
+    if (!fs.existsSync(LOG_DIR)) fs.mkdirSync(LOG_DIR, { recursive: true });
+    if (fs.existsSync(LOG_FILE)) {
+      const st = fs.statSync(LOG_FILE);
+      if (st.size > 2 * 1024 * 1024) {
+        const tail = fs.readFileSync(LOG_FILE, 'utf8').split('\n').slice(-500).join('\n');
+        fs.writeFileSync(LOG_FILE, tail + '\n', 'utf8');
+      }
+    }
+    fs.appendFileSync(LOG_FILE, line + '\n', 'utf8');
+  } catch (_) {}
 }

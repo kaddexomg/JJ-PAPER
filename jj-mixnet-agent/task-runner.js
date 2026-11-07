@@ -14,7 +14,7 @@ import { syncCatalogFromMixnet } from './sync-catalog.js';
 import { syncSuppliersFromMixnet } from './sync-suppliers.js';
 import { importMixnetDocuments, exportPendingDocumentsToMixnet } from './sync-documents.js';
 import { reindexNtx } from './ntx-builder.js';
-import { injectQuoteToMixnet, injectOrderToMixnet, readDbfStruct } from './dbf-driver.js';
+import { injectQuoteToMixnet, injectOrderToMixnet, readDbfStruct, readDbfRows } from './dbf-driver.js';
 import { reconcileClients, getClientsDiscrepancies, createBackup, rollbackBackup } from './client-reconciler.js';
 import { getMixnetUsers, updateMixnetUserPermissions } from './mixnet-usuar.js';
 import { SELLER_CODVEN_TO_PROFILE, PROFILE_ID_TO_CODVEN, log } from './config.js';
@@ -390,7 +390,8 @@ export async function processAgentTasks(compDir) {
           const bakPath = fullPath + '.bak';
           fs.copyFileSync(fullPath, bakPath);
           
-          let content = fs.readFileSync(fullPath, 'utf8');
+          const oldContent = fs.readFileSync(fullPath, 'utf8');
+          let content = oldContent;
           if (payload.target && payload.replacement !== undefined) {
             if (!content.includes(payload.target)) {
               throw new Error('Target no encontrado en el archivo para reemplazar.');
@@ -404,36 +405,343 @@ export async function processAgentTasks(compDir) {
           let syntaxCheck = 'skipped';
           if (fullPath.endsWith('.js') || fullPath.endsWith('.mjs') || fullPath.endsWith('.cjs')) {
             try {
-              execSync(`node -c "${fullPath}"`, { timeout: 10000, encoding: 'utf8' });
+              execSync(`node -c "${fullPath}"`, { timeout: 10000, encoding: 'utf8', windowsHide: true });
               syntaxCheck = 'passed';
             } catch (syntErr) {
               fs.copyFileSync(bakPath, fullPath);
               throw new Error(`Autocorrección abortada: Falló verificación de sintaxis (${syntErr.message}). Archivo restaurado desde .bak.`);
             }
           }
+          const diffPreview = [];
+          if (payload.target !== undefined && payload.replacement !== undefined) {
+            String(payload.target).split('\n').forEach(l => diffPreview.push(`- ${l}`));
+            String(payload.replacement).split('\n').forEach(l => diffPreview.push(`+ ${l}`));
+          }
           result = {
             ok: true,
             path: relPath,
             syntaxCheck,
             backupCreated: bakPath,
+            diff: diffPreview.join('\n'),
             modifiedAt: new Date().toISOString()
           };
           break;
         }
 
+        case 'sales_today': {
+          log('[AGENTE] Ejecutando Skill Diario: Resumen de Ventas y Cotizaciones de Hoy...');
+          if (!compDir) throw new Error('Directorio comp01 no detectado.');
+          const todayStr = payload.date || new Date().toISOString().slice(0, 10).replace(/-/g, '');
+          const encPedPath = path.join(compDir, 'MXENCPED.DBF');
+          const encCotPath = path.join(compDir, 'MXENCCOT.DBF');
+          const sPed = readDbfStruct(encPedPath);
+          const sCot = readDbfStruct(encCotPath);
+          const pedRows = sPed ? readDbfRows(sPed, ['numped', 'emision', 'cliente', 'nomcli', 'codven', 'tot_ped', 'cambio', 'moneda', 'estatus'], 250, true) : [];
+          const cotRows = sCot ? readDbfRows(sCot, ['numcot', 'emision', 'cliente', 'nomcli', 'codven', 'tot_cot', 'cambio', 'moneda', 'estatus'], 250, true) : [];
+
+          const latestDate = pedRows[0]?.emision || cotRows[0]?.emision || todayStr;
+          const targetDate = pedRows.some(r => r.emision === todayStr) || cotRows.some(r => r.emision === todayStr) ? todayStr : latestDate;
+
+          const normUsd = (rawTot, rawRate, rawMon) => {
+            let t = parseFloat(String(rawTot || '0').replace(/,/g, '.')) || 0;
+            const rate = parseFloat(String(rawRate || '0').replace(/,/g, '.')) || 0;
+            const mon = String(rawMon || '').toUpperCase();
+            if (rate > 30 && (mon.includes('BS') || mon.includes('VES') || t > 15000)) {
+              t = +(t / rate).toFixed(2);
+            }
+            return +t.toFixed(2);
+          };
+
+          const dayOrders = pedRows.filter(r => r.emision === targetDate && r.cliente !== '00-000').map(r => {
+            const usd = normUsd(r.tot_ped, r.cambio, r.moneda);
+            const seller = SELLER_CODVEN_TO_PROFILE[r.codven]?.name || `Vendedor ${r.codven || 'S/A'}`;
+            return { num: r.numped, client: r.nomcli || r.cliente, codven: r.codven, seller, total_usd: usd, status: r.estatus };
+          });
+
+          const dayQuotes = cotRows.filter(r => r.emision === targetDate && r.cliente !== '00-000').map(r => {
+            const usd = normUsd(r.tot_cot, r.cambio, r.moneda);
+            const seller = SELLER_CODVEN_TO_PROFILE[r.codven]?.name || `Vendedor ${r.codven || 'S/A'}`;
+            return { num: r.numcot, client: r.nomcli || r.cliente, codven: r.codven, seller, total_usd: usd, status: r.estatus };
+          });
+
+          const bySeller = {};
+          for (const o of dayOrders) {
+            if (!bySeller[o.seller]) bySeller[o.seller] = { ordersCount: 0, ordersUsd: 0, quotesCount: 0, quotesUsd: 0 };
+            bySeller[o.seller].ordersCount++;
+            bySeller[o.seller].ordersUsd = +(bySeller[o.seller].ordersUsd + o.total_usd).toFixed(2);
+          }
+          for (const q of dayQuotes) {
+            if (!bySeller[q.seller]) bySeller[q.seller] = { ordersCount: 0, ordersUsd: 0, quotesCount: 0, quotesUsd: 0 };
+            bySeller[q.seller].quotesCount++;
+            bySeller[q.seller].quotesUsd = +(bySeller[q.seller].quotesUsd + q.total_usd).toFixed(2);
+          }
+
+          result = {
+            ok: true,
+            salesReport: {
+              date: `${targetDate.slice(0,4)}-${targetDate.slice(4,6)}-${targetDate.slice(6,8)}`,
+              ordersCount: dayOrders.length,
+              ordersTotalUsd: +dayOrders.reduce((s, x) => s + x.total_usd, 0).toFixed(2),
+              quotesCount: dayQuotes.length,
+              quotesTotalUsd: +dayQuotes.reduce((s, x) => s + x.total_usd, 0).toFixed(2),
+              bySeller,
+              recentOrders: dayOrders.slice(0, 10),
+              recentQuotes: dayQuotes.slice(0, 10)
+            }
+          };
+          break;
+        }
+
+        case 'inspect_dbf': {
+          if (!compDir) throw new Error('Directorio comp01 no detectado.');
+          const rawTable = String(payload.table || '').trim().toUpperCase();
+          if (!rawTable || rawTable === 'LIST' || rawTable === 'ALL') {
+            const files = fs.readdirSync(compDir).filter(f => f.toUpperCase().endsWith('.DBF'));
+            const summary = files.map(f => {
+              const st = readDbfStruct(path.join(compDir, f));
+              return {
+                table: f,
+                records: st ? st.numRecords : 0,
+                fieldsCount: st ? st.fields.length : 0,
+                recordBytes: st ? st.recordLen : 0
+              };
+            });
+            result = { ok: true, dbfList: summary };
+            break;
+          }
+          const fileName = rawTable.endsWith('.DBF') ? rawTable : `${rawTable}.DBF`;
+          const dbfPath = path.join(compDir, fileName);
+          if (!fs.existsSync(dbfPath)) throw new Error(`Tabla DBF no encontrada en comp01: ${fileName}`);
+          const struct = readDbfStruct(dbfPath);
+          const sampleRows = readDbfRows(struct, null, payload.limit || 5, true);
+          result = {
+            ok: true,
+            dbfInspect: {
+              table: fileName,
+              numRecords: struct.numRecords,
+              headerLen: struct.headerLen,
+              recordLen: struct.recordLen,
+              fields: struct.fields,
+              sampleRows
+            }
+          };
+          break;
+        }
+
+        case 'explore_mixnet':
+        case 'grep_code': {
+          const query = String(payload.query || payload.term || '').trim();
+          const scope = payload.scope || 'both'; // 'mixnet' | 'jjpaper' | 'both'
+          const matches = [];
+          const mixnetRoot = compDir ? path.dirname(compDir) : 'M:\\MIX11';
+
+          const searchDir = (dirPath, exts, maxDepth = 2, curDepth = 0) => {
+            if (curDepth > maxDepth || !fs.existsSync(dirPath)) return;
+            let entries = [];
+            try { entries = fs.readdirSync(dirPath, { withFileTypes: true }); } catch (_) { return; }
+            for (const ent of entries) {
+              if (ent.name.startsWith('.') || ent.name === 'node_modules' || ent.name === 'dist' || ent.name === 'backups') continue;
+              const full = path.join(dirPath, ent.name);
+              if (ent.isDirectory()) {
+                searchDir(full, exts, maxDepth, curDepth + 1);
+              } else if (exts.some(ext => ent.name.toUpperCase().endsWith(ext))) {
+                if (!query) {
+                  matches.push({ file: full, line: 0, preview: `[Archivo detectado: ${ent.name}]` });
+                } else {
+                  try {
+                    const stat = fs.statSync(full);
+                    if (stat.size > 2 * 1024 * 1024) continue;
+                    const text = fs.readFileSync(full, 'latin1');
+                    const lines = text.split(/\r?\n/);
+                    const qLower = query.toLowerCase();
+                    for (let i = 0; i < lines.length; i++) {
+                      if (lines[i].toLowerCase().includes(qLower)) {
+                        matches.push({ file: full, line: i + 1, preview: lines[i].trim().slice(0, 140) });
+                        if (matches.length >= 60) return;
+                      }
+                    }
+                  } catch (_) {}
+                }
+              }
+              if (matches.length >= 60) return;
+            }
+          };
+
+          if (scope === 'mixnet' || scope === 'both') {
+            searchDir(mixnetRoot, ['.PRG', '.CH', '.LNK', '.INI', '.BAT', '.CFG', '.TXT', '.EXT'], 2);
+            // También buscar en nombres de columnas de todos los DBF de comp01
+            if (compDir && query) {
+              const dbfs = fs.readdirSync(compDir).filter(f => f.toUpperCase().endsWith('.DBF'));
+              const qLow = query.toLowerCase();
+              for (const f of dbfs) {
+                const st = readDbfStruct(path.join(compDir, f));
+                if (!st) continue;
+                for (const fld of st.fields) {
+                  if (fld.name.includes(qLow)) {
+                    matches.push({
+                      file: `comp01/${f}`,
+                      line: fld.pos,
+                      preview: `Columna DBF: ${fld.name.toUpperCase()} (${fld.type}, len=${fld.len}, dec=${fld.dec})`
+                    });
+                  }
+                }
+              }
+            }
+          }
+          if ((scope === 'jjpaper' || scope === 'both') && query && matches.length < 60) {
+            const repoRoot = path.resolve(__dirname, '..');
+            searchDir(path.join(repoRoot, 'jj-mixnet-agent'), ['.JS', '.MJS'], 1);
+            searchDir(path.join(repoRoot, 'assets', 'js'), ['.JS'], 2);
+          }
+
+          result = {
+            ok: true,
+            query: query || '*',
+            matchesCount: matches.length,
+            codeMatches: matches
+          };
+          break;
+        }
+
+        case 'schema_bridge': {
+          if (!compDir) throw new Error('Directorio comp01 no detectado.');
+          const dbfName = String(payload.dbf || 'MXCTACLI').toUpperCase().replace(/\.DBF$/, '') + '.DBF';
+          const pgTable = String(payload.pgTable || 'jjp_customers').toLowerCase();
+          const dbfPath = path.join(compDir, dbfName);
+          if (!fs.existsSync(dbfPath)) throw new Error(`Tabla MixNet ${dbfName} no existe.`);
+          const sDbf = readDbfStruct(dbfPath);
+          const samplePg = await sbGet(pgTable, 'limit=1').catch(() => []);
+          const pgCols = Array.isArray(samplePg) && samplePg.length > 0 ? Object.keys(samplePg[0]) : [];
+
+          result = {
+            ok: true,
+            schemaBridge: {
+              dbfTable: dbfName,
+              dbfRecords: sDbf.numRecords,
+              dbfFields: sDbf.fields.map(f => `${f.name.toUpperCase()}(${f.type}:${f.len})`),
+              pgTable,
+              pgColumns: pgCols
+            }
+          };
+          break;
+        }
+
+        case 'mutate_dbf': {
+          if (!compDir) throw new Error('Directorio comp01 no detectado.');
+          const rawTable = String(payload.table || '').trim().toUpperCase();
+          if (!rawTable) throw new Error('Debe especificar payload.table (ej. MXENCCOT, MXCTACLI).');
+          const fileName = rawTable.endsWith('.DBF') ? rawTable : `${rawTable}.DBF`;
+          const dbfPath = path.join(compDir, fileName);
+          if (!fs.existsSync(dbfPath)) throw new Error(`Archivo DBF no existe: ${fileName}`);
+
+          // 1. Snapshot .BAK obligatorio antes de cirugía de datos
+          const snapRes = createBackup(compDir, `pre_mutate_${rawTable.replace('.DBF', '')}`);
+
+          // 2. Leer buffer y buscar registro objetivo
+          const s = readDbfStruct(dbfPath);
+          const buf = fs.readFileSync(dbfPath);
+          const whereField = String(payload.whereField || '').toLowerCase();
+          const whereValue = String(payload.whereValue || '').trim();
+          const recNoTarget = payload.recNo ? parseInt(payload.recNo, 10) : null;
+          const updates = payload.updates || {};
+          let updatedCount = 0;
+
+          for (let i = 0; i < s.numRecords; i++) {
+            const p = s.headerLen + i * s.recordLen;
+            if (p + s.recordLen > buf.length) break;
+            let isMatch = false;
+            if (recNoTarget && (i + 1) === recNoTarget) {
+              isMatch = true;
+            } else if (whereField && whereValue) {
+              const wf = s.fields.find(f => f.name === whereField);
+              if (wf) {
+                const curVal = buf.toString('latin1', p + wf.pos, p + wf.pos + wf.len).trim();
+                if (curVal === whereValue) isMatch = true;
+              }
+            }
+            if (!isMatch) continue;
+
+            if (payload.deleteRecord === true) {
+              buf[p] = 0x2A; // Marcar registro como borrado (*) en Clipper
+            } else if (payload.undeleteRecord === true) {
+              buf[p] = 0x20; // Restaurar registro activo (espacio)
+            }
+
+            for (const [k, v] of Object.entries(updates)) {
+              const fld = s.fields.find(f => f.name === k.toLowerCase());
+              if (!fld) continue;
+              let strVal = String(v ?? '');
+              if (fld.type === 'N') {
+                const num = parseFloat(strVal.replace(/,/g, '.')) || 0;
+                strVal = (fld.dec > 0 ? num.toFixed(fld.dec) : String(Math.round(num))).padStart(fld.len, ' ');
+              } else {
+                strVal = strVal
+                  .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                  .replace(/[\r\n\t]/g, ' ')
+                  .replace(/[^\x20-\x7E]/g, ' ')
+                  .trim()
+                  .slice(0, fld.len)
+                  .padEnd(fld.len, ' ');
+              }
+              buf.write(strVal, p + fld.pos, fld.len, 'latin1');
+            }
+            updatedCount++;
+          }
+
+          if (updatedCount > 0) {
+            fs.writeFileSync(dbfPath, buf);
+            // Reindexar automáticamente si se tocaron tablas de cotizaciones o pedidos
+            if (fileName.includes('COT')) {
+              reindexNtx(path.join(compDir, 'MXENCCOT.DBF'), path.join(compDir, 'MXENCZX1.NTX'), 'NUMCOT', 8);
+              reindexNtx(path.join(compDir, 'MXRENCOT.DBF'), path.join(compDir, 'MXRECZX1.NTX'), 'NUMCOT', 8);
+            } else if (fileName.includes('PED')) {
+              reindexNtx(path.join(compDir, 'MXENCPED.DBF'), path.join(compDir, 'MXENPEX1.NTX'), 'NUMPED', 8);
+              reindexNtx(path.join(compDir, 'MXRENPED.DBF'), path.join(compDir, 'MXREPEX1.NTX'), 'NUMPED', 8);
+            }
+          }
+
+          result = {
+            ok: true,
+            table: fileName,
+            updatedRecords: updatedCount,
+            backupSnapshot: snapRes?.snapshotId || 'creado'
+          };
+          break;
+        }
+
+        case 'read_logs': {
+          const logFile = path.join(__dirname, 'logs', 'agent.log');
+          let lines = [];
+          if (fs.existsSync(logFile)) {
+            lines = fs.readFileSync(logFile, 'utf8').trim().split('\n').slice(-(payload.lines || 60));
+          }
+          result = { ok: true, stdout: lines.join('\n') || 'Sin registros recientes en logs/agent.log' };
+          break;
+        }
+
         case 'git_pull':
         case 'self_update': {
-          log('[AGENTE] Ejecutando auto-actualización vía git pull...');
+          log('[AGENTE] Ejecutando auto-actualización silenciosa vía git fetch/reset...');
           let pullOutput = '';
           const repoRoot = path.resolve(__dirname, '..');
+          const gitEnv = { ...process.env, GIT_TERMINAL_PROMPT: '0' };
           try {
-            pullOutput = execSync('git pull origin main', {
+            execSync('git -c core.askPass= fetch origin main', {
               cwd: repoRoot,
               encoding: 'utf8',
-              timeout: 30000
+              timeout: 30000,
+              windowsHide: true,
+              env: gitEnv
+            });
+            pullOutput = execSync('git -c core.askPass= reset --hard origin/main', {
+              cwd: repoRoot,
+              encoding: 'utf8',
+              timeout: 30000,
+              windowsHide: true,
+              env: gitEnv
             });
           } catch (e) {
-            pullOutput = `git pull falló: ${e.message}\n${e.stdout || ''}\n${e.stderr || ''}`;
+            pullOutput = `git update falló: ${e.message}\n${e.stdout || ''}\n${e.stderr || ''}`;
           }
           result = { ok: true, output: pullOutput.trim() };
           await updateTaskStatus(id, 'completed', result);

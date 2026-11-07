@@ -317,12 +317,16 @@ def _resolve_path(name):
     return name
 
 _ALIASES = {
-    'totneto': ['total', 'totbruto', 'monto'],
-    'total': ['totneto', 'totbruto', 'monto'],
+    'totneto': ['tot_ped', 'tot_cot', 'total', 'totbruto', 'monto'],
+    'total': ['tot_ped', 'tot_cot', 'totneto', 'totbruto', 'monto'],
+    'tot_cot': ['totneto', 'tot_ped', 'total'],
+    'tot_ped': ['totneto', 'tot_cot', 'total'],
     'nomcli': ['nombre', 'cliente'],
     'nombre': ['nomcli', 'cliente'],
     'codcli': ['cliente', 'codigo'],
     'cliente': ['codcli', 'nomcli'],
+    'rif': ['cif', 'rifcli'],
+    'cif': ['rif', 'rifcli'],
     'fecha': ['emision', 'fecped', 'feccot'],
     'emision': ['fecha'],
     'vendedor': ['codven']

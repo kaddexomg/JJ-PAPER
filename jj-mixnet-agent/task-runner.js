@@ -300,11 +300,11 @@ export async function processAgentTasks(compDir) {
           const scratchDir = path.join(repoRoot, 'scratch');
           if (!fs.existsSync(scratchDir)) fs.mkdirSync(scratchDir, { recursive: true });
 
-          // Proveer módulo nativo dbf.py en scratch/ para que 'import dbf' o 'read_dbf()' jamás fallen
-          const dbfShimPath = path.join(scratchDir, 'dbf.py');
+          // Inyectar módulo nativo dbf directamente en sys.modules dentro del script efímero
+          // (Evita cualquier sombra de archivo en Comodo VTRoot / __pycache__ en Supervisor-PC)
           const safeCompDir = (compDir || '\\\\servidor\\MIX11\\comp01').replace(/\\/g, '\\\\');
-          const dbfShimCode = `# Native zero-dependency DBF reader shim for JJ Paper OpenCode
-import os, struct
+          const prelude = `# Native zero-dependency DBF reader shim for JJ Paper OpenCode
+import sys, os, struct, types
 
 COMP01_DIR = "${safeCompDir}"
 
@@ -396,12 +396,16 @@ class Table:
 
 def read_dbf(table_name, limit=100, backwards=True):
     return Table(table_name).read_rows(limit=limit, backwards=backwards)
-`;
-          fs.writeFileSync(dbfShimPath, dbfShimCode, 'utf8');
 
-          const prelude = `import sys, os\nsys.path.insert(0, r"${scratchDir.replace(/\\/g, '\\\\')}")\nfrom dbf import Table, read_dbf, COMP01_DIR\n`;
+_dbf_mod = types.ModuleType('dbf')
+_dbf_mod.Table = Table
+_dbf_mod.read_dbf = read_dbf
+_dbf_mod.DbfRow = DbfRow
+_dbf_mod.COMP01_DIR = COMP01_DIR
+sys.modules['dbf'] = _dbf_mod
+`;
           const tmpScript = path.join(scratchDir, `agent_py_${Date.now()}.py`);
-          fs.writeFileSync(tmpScript, prelude + pyCode, 'utf8');
+          fs.writeFileSync(tmpScript, prelude + '\n' + pyCode, 'utf8');
           const pyCandidates = [
             'C:\\Users\\Supervisor\\AppData\\Local\\Python\\bin\\python.exe',
             process.env.LOCALAPPDATA ? path.join(process.env.LOCALAPPDATA, 'Python', 'bin', 'python.exe') : '',

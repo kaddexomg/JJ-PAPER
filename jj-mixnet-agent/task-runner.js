@@ -316,18 +316,34 @@ def _resolve_path(name):
         if os.path.exists(p): return p
     return name
 
+_ALIASES = {
+    'totneto': ['total', 'totbruto', 'monto'],
+    'total': ['totneto', 'totbruto', 'monto'],
+    'nomcli': ['nombre', 'cliente'],
+    'nombre': ['nomcli', 'cliente'],
+    'codcli': ['cliente', 'codigo'],
+    'cliente': ['codcli', 'nomcli'],
+    'fecha': ['emision', 'fecped', 'feccot'],
+    'emision': ['fecha'],
+    'vendedor': ['codven']
+}
+
 class DbfRow(dict):
+    def _lookup(self, k):
+        if not isinstance(k, str):
+            return dict.get(self, k, '')
+        lk, uk = k.lower(), k.upper()
+        if dict.__contains__(self, lk): return dict.__getitem__(self, lk)
+        if dict.__contains__(self, uk): return dict.__getitem__(self, uk)
+        for alt in _ALIASES.get(lk, []):
+            if dict.__contains__(self, alt): return dict.__getitem__(self, alt)
+            if dict.__contains__(self, alt.upper()): return dict.__getitem__(self, alt.upper())
+        return ''
     def __getattr__(self, k):
-        lk = k.lower()
-        if lk in self: return self[lk]
-        if k.upper() in self: return self[k.upper()]
-        raise AttributeError(k)
+        if k.startswith('_'): raise AttributeError(k)
+        return self._lookup(k)
     def __getitem__(self, k):
-        if isinstance(k, str):
-            lk = k.lower()
-            if dict.__contains__(self, lk): return dict.__getitem__(self, lk)
-            if dict.__contains__(self, k.upper()): return dict.__getitem__(self, k.upper())
-        return dict.__getitem__(self, k)
+        return self._lookup(k)
 
 class Table:
     def __init__(self, filename, *args, **kwargs):
